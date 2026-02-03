@@ -65,7 +65,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <header className="pt-48 pb-24 px-6 text-center">
-          <h2 className="text-6xl md:text-8xl font-black mb-8 leading-[1.1]">تسوق بذكاء، <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">بع بلمسة واحدة</span></h2>
+          <h2 className="text-6xl md:text-8xl font-black mb-8 leading-[1.1]">  <br/>وجهتكم الأولى<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">للتسوق في ولاية ميلة</span></h2>
           <p className="text-gray-400 max-w-2xl mx-auto text-lg md:text-xl">أكبر تجمع تجاري في ولاية ميلة 🇩🇿</p>
       </header>
 
