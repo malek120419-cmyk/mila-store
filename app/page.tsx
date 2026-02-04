@@ -13,7 +13,7 @@ export default function Home() {
   const [selectedMun, setSelectedMun] = useState(municipalities[0]);
 
   // ضع رقمك هنا بدلاً من الاكسات (ابدأ بـ 213)
-  const sellerWhatsApp = "213XXXXXXXXX"; 
+  const sellerWhatsApp = "213550031200"; 
 
   const handleOrder = () => {
     if(!name || !phone) {
