@@ -1,200 +1,86 @@
-"use client";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, Plus, X, Phone, MessageCircle, Package, Info, ArrowRight, LayoutGrid, Sparkles, Camera } from "lucide-react";
+import React, { useState } from 'react';
+
+// قائمة بلديات ميلة
+const municipalities = [
+  "ميلة المركز", "شلغوم العيد", "فرجيوة", "تاجنانت", "تلاغمة", 
+  "القرارم قوقة", "وادي العثمانية", "سيدي مروان", "زغاية"
+];
 
 export default function Home() {
-  const [showForm, setShowForm] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
-  
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState(0);
-  const [desc, setDesc] = useState("");
-  const [phone, setPhone] = useState("");
-  const [image, setImage] = useState("");
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [selectedMun, setSelectedMun] = useState(municipalities[0]);
 
-  const commission = 1.20;
+  // هنا يمكنك تغيير الرقم حسب البائع (حالياً وضعنا رقمك كمثال)
+  const sellerWhatsApp = "213XXXXXXXXX"; 
 
-  useEffect(() => {
-    const saved = localStorage.getItem("mila_pro_v3");
-    if (saved) setProducts(JSON.parse(saved));
-  }, []);
-
-  const handleAdd = () => {
-    if (!name || price <= 0 || !phone) return alert("يرجى إكمال البيانات الأساسية");
-    const newP = { 
-        id: Date.now(), 
-        name, 
-        price: (price * commission).toFixed(0), 
-        desc, 
-        phone,
-        image: image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1000&auto=format&fit=crop"
-    };
-    const newList = [newP, ...products];
-    setProducts(newList);
-    localStorage.setItem("mila_pro_v3", JSON.stringify(newList));
-    setShowForm(false);
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setName(""); setPrice(0); setDesc(""); setPhone(""); setImage("");
+  const handleOrder = () => {
+    if(!name || !phone) {
+      alert("يرجى ملء الاسم والهاتف أولاً");
+      return;
+    }
+    const message = `طلب جديد من ميلة ستور:%0A- الاسم: ${name}%0A- الهاتف: ${phone}%0A- البلدية: ${selectedMun}`;
+    window.open(`https://wa.me/${sellerWhatsApp}?text=${message}`, '_blank');
   };
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white overflow-x-hidden font-sans selection:bg-blue-500/30" dir="rtl">
-      
-      {/* Navbar */}
-      <nav className="fixed top-0 w-full z-50 bg-black/40 backdrop-blur-2xl border-b border-white/5 p-4 md:p-6">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3 cursor-pointer">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-400 p-2.5 rounded-2xl shadow-lg shadow-blue-600/20">
-              <Sparkles size={22} className="text-white animate-pulse" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tighter italic uppercase">MILA<span className="text-blue-500">STORE</span></h1>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0a0a0a] text-white p-6 font-sans" dir="rtl">
+      <div className="text-center space-y-8 max-w-2xl w-full">
+        
+        {/* العنوان الراقي الذي طلبته سابقاً */}
+        <h1 className="text-5xl md:text-7xl font-black tracking-tight">
+          ميلة ستور <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500">
+            عنوان الفخامة
+          </span>
+        </h1>
+
+        <p className="text-gray-400 text-lg md:text-xl font-light">
+          وجهتكم الأولى في ميلة - اطلب الآن وادفع عند الاستلام
+        </p>
+
+        {/* نموذج الطلب المدمج بتصميم أنيق */}
+        <div className="bg-gray-900/50 p-8 rounded-2xl border border-gray-800 space-y-5 backdrop-blur-sm">
+          <div className="text-right">
+            <label className="text-sm text-amber-500 mb-2 block">الاسم الكامل</label>
+            <input 
+              type="text" 
+              placeholder="أدخل اسمك هنا"
+              className="w-full p-4 bg-black/40 border border-gray-700 rounded-xl focus:border-amber-500 outline-none transition"
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
+
+          <div className="text-right">
+            <label className="text-sm text-amber-500 mb-2 block">رقم الهاتف</label>
+            <input 
+              type="text" 
+              placeholder="06xxxxxxxx"
+              className="w-full p-4 bg-black/40 border border-gray-700 rounded-xl focus:border-amber-500 outline-none transition"
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </div>
+
+          <div className="text-right">
+            <label className="text-sm text-amber-500 mb-2 block">اختر البلدية</label>
+            <select 
+              className="w-full p-4 bg-black/40 border border-gray-700 rounded-xl focus:border-amber-500 outline-none transition appearance-none"
+              onChange={(e) => setSelectedMun(e.target.value)}
+            >
+              {municipalities.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+
           <button 
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 px-7 py-3 rounded-2xl font-black text-sm flex items-center gap-2 transition-all shadow-xl shadow-blue-600/20 active:scale-95"
+            onClick={handleOrder}
+            className="w-full py-5 bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold rounded-xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all text-xl mt-4"
           >
-            <Plus size={20}/> ابدأ التميز الآن
+            تأكيد الطلب عبر واتساب
           </button>
         </div>
-      </nav>
 
-      {/* Hero Section - النسخة الراقية */}
-      <header className="pt-48 pb-24 px-6 text-center">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-block px-4 py-1.5 rounded-full border border-blue-500/20 bg-blue-500/5 text-blue-400 text-sm font-medium mb-6"
-          >
-            الوجهة الفاخرة للتسوق في ولاية ميلة 📍
-          </motion.div>
-          
-          <h2 className="text-6xl md:text-8xl font-black mb-8 leading-[1.1] tracking-tight">
-            أناقة ميلة <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-purple-600">
-              بين يديك
-            </span>
-          </h2>
-          
-          <p className="text-gray-400 max-w-2xl mx-auto text-lg md:text-xl font-light leading-relaxed">
-            اكتشف تشكيلة استثنائية من أرقى المنتجات المحلية والعالمية، 
-            نجمع لك الجودة والتميز في قلب ولاية ميلة.
-          </p>
-      </header>
-
-      {/* Grid المنتجات */}
-      <main className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 pb-40">
-        <AnimatePresence>
-          {products.map((p) => (
-            <motion.div 
-              key={p.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              onClick={() => setSelectedProduct(p)}
-              className="group bg-[#0a0a0a] border border-white/5 rounded-[2.8rem] p-5 cursor-pointer hover:border-blue-500/40 transition-all duration-500 shadow-xl"
-            >
-              <div className="h-64 bg-gray-900 rounded-[2.2rem] mb-6 overflow-hidden relative">
-                <img src={p.image} alt={p.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-              </div>
-              <div className="px-2">
-                <h4 className="text-2xl font-bold mb-2">{p.name}</h4>
-                <div className="text-3xl font-black text-blue-500">{Number(p.price).toLocaleString()} <span className="text-sm">دج</span></div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </main>
-
-      {/* نافذة إضافة منتج */}
-      <AnimatePresence>
-        {showForm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowForm(false)} className="absolute inset-0 bg-black/95 backdrop-blur-xl" />
-            
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] w-full max-w-2xl relative z-10 shadow-3xl max-h-[90vh] flex flex-col"
-            >
-              <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                <h3 className="text-3xl font-black italic tracking-tighter">اعرض <span className="text-blue-500">منتجك</span></h3>
-                <button onClick={() => setShowForm(false)} className="bg-white/5 p-2 rounded-full hover:bg-red-500/20 text-white"><X size={24}/></button>
-              </div>
-
-              <div className="p-8 overflow-y-auto custom-scrollbar flex-1 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 mr-2 uppercase text-right block">اسم السلعة</label>
-                    <input placeholder="مثلاً: ساعة ذكية فاخرة" onChange={(e)=>setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 outline-none focus:border-blue-500 text-white text-right" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 mr-2 uppercase text-right block">رابط الصورة (URL)</label>
-                    <input placeholder="https://..." onChange={(e)=>setImage(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 outline-none focus:border-blue-500 text-white" dir="ltr" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 mr-2 uppercase text-right block">سعر البيع</label>
-                    <input type="number" placeholder="0" onChange={(e)=>setPrice(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 outline-none focus:border-blue-500 text-white text-right" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-blue-500 uppercase text-right block">السعر النهائي للزبون</label>
-                    <div className="w-full bg-blue-600/10 border border-blue-600/20 rounded-2xl p-4 text-blue-500 font-black text-center">{(price * commission).toFixed(0)} دج</div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 mr-2 uppercase text-right block">وصف المنتج</label>
-                  <textarea placeholder="تحدث عن الجودة والضمان..." onChange={(e)=>setDesc(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 h-28 outline-none focus:border-blue-500 resize-none text-white text-right" />
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 mr-2 uppercase text-right block">رقم الهاتف للتواصل</label>
-                  <div className="relative flex items-center bg-white/5 border border-white/10 rounded-2xl overflow-hidden focus-within:border-green-500 transition-all">
-                    <input placeholder="06... / 05... / 07..." onChange={(e)=>setPhone(e.target.value)} className="w-full bg-transparent p-4 outline-none text-left font-mono text-lg text-white" dir="ltr" />
-                    <div className="px-4 border-r border-white/10 text-gray-500"><Phone size={20} /></div>
-                  </div>
-                </div>
-
-                <button onClick={handleAdd} className="w-full bg-blue-600 py-5 rounded-3xl font-black text-xl shadow-2xl shadow-blue-600/40 hover:bg-blue-500 transition-all mt-4 mb-2 text-white">نشر العرض الآن</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* نافذة التفاصيل الجانبية */}
-      <AnimatePresence>
-        {selectedProduct && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-end">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProduct(null)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
-            <motion.div 
-              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30 }}
-              className="relative bg-[#080808] w-full max-w-xl h-full p-8 md:p-12 border-r border-white/10 overflow-y-auto"
-            >
-              <button onClick={() => setSelectedProduct(null)} className="mb-10 p-4 bg-white/5 rounded-2xl hover:bg-red-500/20 text-white"><ArrowRight/></button>
-              <img src={selectedProduct.image} className="w-full aspect-video object-cover rounded-[2.5rem] mb-8 shadow-2xl" alt="" />
-              <h2 className="text-5xl font-black mb-4 leading-tight text-right">{selectedProduct.name}</h2>
-              <p className="text-4xl font-black text-blue-500 mb-8 text-right">{Number(selectedProduct.price).toLocaleString()} دج</p>
-              <div className="bg-white/5 p-8 rounded-[2rem] mb-10 border border-white/5">
-                <p className="text-gray-300 leading-relaxed text-xl whitespace-pre-wrap text-right">{selectedProduct.desc || "لا يوجد وصف متوفر حالياً."}</p>
-              </div>
-              <a href={`https://wa.me/213${selectedProduct.phone.substring(1)}`} className="flex items-center justify-center gap-4 w-full bg-green-600 py-6 rounded-3xl font-black text-2xl hover:bg-green-500 transition-all text-white">
-                <MessageCircle size={28}/> تواصل لطلب المنتج
-              </a>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e3a8a; border-radius: 10px; }
-      `}</style>
-
-    </div>
+        <p className="text-gray-600 text-sm">التوصيل متوفر لجميع بلديات ولاية ميلة 🚚</p>
+      </div>
+    </main>
   );
 }
