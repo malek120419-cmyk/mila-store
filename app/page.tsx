@@ -21,16 +21,14 @@ const CATEGORIES = {
 
 const UI = {
   ar: {
-    search: "ابحث عن منتج في ميلة...", sell: "بيع منتج +", login: "دخول", logout: "خروج", myAds: "إعلاناتي", allAds: "الكل",
-    price: "دج", seller: "البائع", location: "📍 الموقع", desc: "الوصف", wa: "واتساب", delTitle: "حذف نهائي؟",
-    confirm: "نعم، احذف", cancel: "إلغاء", addTitle: "إضافة منتج", pName: "الاسم", pPrice: "السعر", pWa: "واتساب",
-    pDesc: "الوصف", pCat: "الفئة", pLoc: "البلدية", pSeller: "اسم البائع", publish: "نشر الآن", uploadImg: "اختر صور (يمكن اختيار متعدد)"
+    search: "بحث عن منتج...", sell: "بيع +", login: "دخول", logout: "خروج", myAds: "إعلاناتي",
+    price: "دج", seller: "البائع", location: "📍", wa: "تواصل واتساب", delTitle: "حذف نهائي؟",
+    confirm: "حذف", cancel: "إلغاء", addTitle: "إضافة منتج", publish: "نشر الآن", uploadImg: "رفع الصور"
   },
   en: {
-    search: "Search in Mila...", sell: "Sell +", login: "Login", logout: "Logout", myAds: "My Ads", allAds: "All",
-    price: "DZD", seller: "Seller", location: "📍 Location", desc: "Description", wa: "WhatsApp", delTitle: "Delete?",
-    confirm: "Yes, Delete", cancel: "Cancel", addTitle: "Add Product", pName: "Name", pPrice: "Price", pWa: "WhatsApp",
-    pDesc: "Description", pCat: "Category", pLoc: "Location", pSeller: "Seller Name", publish: "Publish", uploadImg: "Upload Images (Select Multiple)"
+    search: "Search...", sell: "Sell +", login: "Login", logout: "Logout", myAds: "My Ads",
+    price: "DZD", seller: "Seller", location: "📍", wa: "WhatsApp", delTitle: "Delete?",
+    confirm: "Delete", cancel: "Cancel", addTitle: "Add Product", publish: "Publish", uploadImg: "Upload"
   }
 };
 
@@ -85,39 +83,20 @@ export default function MilaStore() {
     setIsActionLoading(false);
   };
 
-  // --- دالة الحذف القوية جداً ---
   const forceDelete = async () => {
     if (!productToDelete || !user) return;
     setIsActionLoading(true);
-    
-    // 1. حذف محلي فوري (لراحة المستخدم)
-    const backupProducts = [...products];
-    setProducts(prev => prev.filter(p => p.id !== productToDelete));
-
-    try {
-      // 2. طلب حذف صريح من قاعدة البيانات
-      const { error, count } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', productToDelete)
-        .eq('user_id', user.id); // التأكد أن الحاذف هو صاحب المنتج
-
-      if (error) throw error;
-
-      // 3. نجاح الحذف
+    const { error } = await supabase.from('products').delete().match({ id: productToDelete, user_id: user.id });
+    if (!error) {
+      setProducts(prev => prev.filter(p => p.id !== productToDelete));
       setProductToDelete(null);
       setSelectedProduct(null);
-      console.log("Deleted successfully");
-    } catch (e: any) {
-      alert("خطأ في الحذف: " + e.message);
-      setProducts(backupProducts); // استرجاع المنتجات في حال فشل السيرفر
-    } finally {
-      setIsActionLoading(false);
     }
+    setIsActionLoading(false);
   };
 
   const handlePublish = async () => {
-    if (!formData.name || !imageFiles || imageFiles.length === 0) return alert("Please select images");
+    if (!formData.name || !imageFiles) return alert("Missing data");
     setIsActionLoading(true);
     try {
       const uploadedUrls = [];
@@ -125,76 +104,98 @@ export default function MilaStore() {
         const file = imageFiles[i];
         const fileName = `${Date.now()}-${i}.jpg`;
         await supabase.storage.from('mila-market-assests').upload(fileName, file);
-        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/mila-market-assests/${fileName}`;
-        uploadedUrls.push(url);
+        uploadedUrls.push(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/mila-market-assests/${fileName}`);
       }
-
-      await supabase.from('products').insert([{
-        ...formData, 
-        price: parseFloat(formData.price), 
-        image_url: uploadedUrls[0],
-        images: uploadedUrls,
-        user_id: user?.id, 
-        user_email: user?.email
-      }]);
-
+      await supabase.from('products').insert([{ ...formData, price: parseFloat(formData.price), image_url: uploadedUrls[0], images: uploadedUrls, user_id: user?.id, user_email: user?.email }]);
       setShowAddForm(false);
       fetchProducts();
-    } catch (e: any) {
-      alert("Error: " + e.message);
-    } finally {
-      setIsActionLoading(false);
-    }
+    } catch (e: any) { alert(e.message); } finally { setIsActionLoading(false); }
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-black text-amber-500 font-black italic text-4xl animate-pulse tracking-tighter uppercase">MILA STORE</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-black text-amber-500 font-black italic text-4xl animate-pulse">MILA STORE</div>;
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-[#050505] text-white' : 'bg-white text-black'} transition-all`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen ${isDarkMode ? 'bg-[#050505] text-white' : 'bg-gray-50 text-black'} transition-colors duration-500`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       
-      {/* Navbar */}
-      <nav className="p-6 sticky top-0 z-[100] backdrop-blur-3xl border-b border-white/5 bg-inherit/80 flex justify-between items-center max-w-7xl mx-auto">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-black italic tracking-tighter">MILA <span className="text-amber-500 font-normal">STORE</span></h1>
-          <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} className="bg-white/5 px-4 py-2 rounded-full text-[10px] font-black border border-white/10 uppercase tracking-widest">{lang === 'ar' ? 'English' : 'العربية'}</button>
+      {/* Navbar - Mobile Optimized */}
+      <nav className="p-4 md:p-6 sticky top-0 z-[100] backdrop-blur-2xl border-b border-white/5 bg-inherit/80 flex justify-between items-center max-w-7xl mx-auto shadow-xl">
+        <div className="flex items-center gap-3 md:gap-6">
+          <motion.h1 whileTap={{ scale: 0.9 }} className="text-xl md:text-2xl font-black italic tracking-tighter">MILA <span className="text-amber-500 font-normal">STORE</span></motion.h1>
+          <motion.button 
+            whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.9 }}
+            onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} 
+            className="bg-white/5 px-3 py-1.5 rounded-xl text-[9px] font-black border border-white/10 uppercase"
+          >
+            {lang === 'ar' ? 'EN' : 'AR'}
+          </motion.button>
         </div>
-        <div className="flex gap-4 items-center">
+
+        <div className="flex gap-2 md:gap-4 items-center">
           {user ? (
-             <div className="flex items-center gap-4">
-                <button onClick={() => { setShowOnlyMyAds(!showOnlyMyAds); }} className={`text-[10px] font-black uppercase ${showOnlyMyAds ? 'text-amber-500' : 'opacity-40'}`}>{t.myAds}</button>
-                <button onClick={() => supabase.auth.signOut()} className="text-red-500 text-[10px] font-black uppercase">{t.logout}</button>
+             <div className="flex items-center gap-2 md:gap-4">
+                <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowOnlyMyAds(!showOnlyMyAds)} className={`text-[9px] font-black uppercase px-2 py-1 rounded-lg ${showOnlyMyAds ? 'bg-amber-500 text-black' : 'opacity-40'}`}>{t.myAds}</motion.button>
+                <motion.button whileTap={{ scale: 0.9 }} onClick={() => supabase.auth.signOut()} className="text-red-500 text-[9px] font-black uppercase">✕</motion.button>
              </div>
           ) : (
-            <button onClick={() => setShowAuthModal(true)} className="text-[10px] font-black uppercase opacity-40">{t.login}</button>
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowAuthModal(true)} className="text-[9px] font-black uppercase opacity-40">{t.login}</motion.button>
           )}
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-xl">{isDarkMode ? '🌞' : '🌚'}</button>
-          <button onClick={() => user ? setShowAddForm(true) : setShowAuthModal(true)} className="bg-amber-500 text-black px-6 py-2 rounded-full font-black text-xs shadow-xl">{t.sell}</button>
+          <motion.button whileHover={{ scale: 1.2, rotate: 20 }} onClick={() => setIsDarkMode(!isDarkMode)} className="text-lg md:text-xl p-2">{isDarkMode ? '🌞' : '🌚'}</motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(245,158,11,0.3)" }} whileTap={{ scale: 0.95 }}
+            onClick={() => user ? setShowAddForm(true) : setShowAuthModal(true)} 
+            className="bg-amber-500 text-black px-4 md:px-6 py-2 rounded-full font-black text-[10px] md:text-xs shadow-lg"
+          >
+            {t.sell}
+          </motion.button>
         </div>
       </nav>
 
-      {/* Main Grid */}
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        <input type="text" placeholder={t.search} className="w-full p-6 rounded-[2.5rem] bg-white/5 border border-white/5 outline-none text-center font-bold shadow-2xl" onChange={(e) => setSearchQuery(e.target.value)} />
+      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6 md:space-y-10">
+        {/* Search - Enhanced UI */}
+        <div className="relative group">
+          <input 
+            type="text" placeholder={t.search} 
+            className="w-full p-5 md:p-7 rounded-[2rem] md:rounded-[3rem] bg-white/5 border border-white/5 outline-none text-center font-bold shadow-2xl focus:border-amber-500/40 transition-all text-sm md:text-lg" 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+          />
+        </div>
         
-        <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar justify-center">
+        {/* Categories - Spaced for Mobile */}
+        <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar justify-start md:justify-center px-2">
           {CATEGORIES[lang].map((cat, i) => (
-            <button key={i} onClick={() => setActiveCategory(CATEGORIES.ar[i])} className={`px-6 py-2 rounded-full text-[10px] font-black transition-all ${activeCategory === CATEGORIES.ar[i] ? 'bg-amber-500 text-black shadow-lg' : 'bg-white/5'}`}>{cat}</button>
+            <motion.button 
+              key={i} whileTap={{ scale: 0.9 }}
+              onClick={() => setActiveCategory(CATEGORIES.ar[i])} 
+              className={`px-6 py-2.5 rounded-full text-[10px] font-black whitespace-nowrap transition-all border ${activeCategory === CATEGORIES.ar[i] ? 'bg-amber-500 text-black border-amber-500' : 'bg-white/5 border-white/5'}`}
+            >
+              {cat}
+            </motion.button>
           ))}
         </div>
 
-        <main className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {/* Product Grid - Mobile Spacing */}
+        <main className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
           <AnimatePresence>
             {products.filter(p => (activeCategory === 'الكل' || p.category === activeCategory) && p.name.toLowerCase().includes(searchQuery.toLowerCase()) && (!showOnlyMyAds || p.user_id === user?.id)).map(product => (
-              <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={product.id} className="group bg-neutral-900/40 rounded-[2.5rem] overflow-hidden border border-white/5 relative shadow-xl hover:border-amber-500/40 transition-all">
-                <div onClick={() => setSelectedProduct(product)} className="aspect-square cursor-pointer overflow-hidden">
-                  <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+              <motion.div 
+                layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                key={product.id} className="group bg-neutral-900/40 rounded-[2rem] md:rounded-[3rem] overflow-hidden border border-white/5 relative shadow-2xl hover:border-amber-500/30 transition-all"
+              >
+                <div onClick={() => setSelectedProduct(product)} className="aspect-[4/5] cursor-pointer overflow-hidden">
+                  <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
                 </div>
                 {user?.id === product.user_id && (
-                  <button onClick={(e) => { e.stopPropagation(); setProductToDelete(product.id); }} className="absolute top-4 left-4 bg-red-600 p-2 rounded-full text-white shadow-xl z-30 hover:scale-125 transition-transform">🗑️</button>
+                  <motion.button 
+                    whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.8 }}
+                    onClick={(e) => { e.stopPropagation(); setProductToDelete(product.id); }} 
+                    className="absolute top-3 left-3 md:top-5 md:left-5 bg-red-600/90 text-white w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-2xl z-30"
+                  >
+                    ✕
+                  </motion.button>
                 )}
-                <div className="p-5 text-center">
-                  <h3 className="font-black text-sm truncate opacity-80">{product.name}</h3>
-                  <p className="text-amber-500 font-black mt-1 text-xs">{product.price} {t.price}</p>
+                <div className="p-4 md:p-6 text-center">
+                  <h3 className="font-black text-[11px] md:text-sm truncate opacity-70 uppercase tracking-tighter">{product.name}</h3>
+                  <p className="text-amber-500 font-black mt-1 text-xs md:text-base">{product.price} <span className="text-[10px] opacity-60">{t.price}</span></p>
                 </div>
               </motion.div>
             ))}
@@ -202,98 +203,120 @@ export default function MilaStore() {
         </main>
       </div>
 
-      {/* Product Details */}
+      {/* --- Windows / Modals --- */}
+
+      {/* Product Details - Redesigned ✕ */}
       <AnimatePresence>
         {selectedProduct && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-3xl overflow-y-auto p-6">
-            <button onClick={() => setSelectedProduct(null)} className="fixed top-8 right-8 z-[310] bg-white/10 text-white w-12 h-12 rounded-full text-xl font-black">✕</button>
-            <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-10 mt-10">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[300] bg-black/98 backdrop-blur-3xl overflow-y-auto">
+            <motion.button 
+              whileHover={{ rotate: 90 }} whileTap={{ scale: 0.8 }}
+              onClick={() => setSelectedProduct(null)} 
+              className="fixed top-6 right-6 z-[310] bg-white/10 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-light border border-white/10"
+            >
+              ✕
+            </motion.button>
+            <div className="max-w-6xl mx-auto p-4 md:p-10 flex flex-col lg:flex-row gap-8 md:gap-12 mt-16 md:mt-24">
               <div className="lg:w-1/2 space-y-4">
-                <img src={selectedProduct.image_url} className="w-full aspect-square object-cover rounded-[3rem] shadow-2xl border border-white/5" />
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <img src={selectedProduct.image_url} className="w-full aspect-square object-cover rounded-[2.5rem] md:rounded-[4rem] shadow-2xl" />
+                <div className="flex gap-3 overflow-x-auto py-2 no-scrollbar">
                   {selectedProduct.images?.map((img: string, i: number) => (
-                    <img key={i} src={img} className="w-20 h-20 rounded-xl object-cover border border-white/10 cursor-pointer hover:border-amber-500" onClick={() => setSelectedProduct({...selectedProduct, image_url: img})} />
+                    <motion.img key={i} whileTap={{ scale: 0.9 }} src={img} className="w-20 h-20 md:w-24 md:h-24 rounded-2xl object-cover cursor-pointer border-2 border-transparent hover:border-amber-500" onClick={() => setSelectedProduct({...selectedProduct, image_url: img})} />
                   ))}
                 </div>
               </div>
-              <div className="flex-1 space-y-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-                <h2 className="text-5xl font-black italic tracking-tighter">{selectedProduct.name}</h2>
-                <p className="text-amber-500 text-3xl font-black">{selectedProduct.price} {t.price}</p>
-                <div className="bg-white/5 p-8 rounded-[2rem] border border-white/5 italic opacity-80 text-lg leading-relaxed">{selectedProduct.description}</div>
-                <div className="flex justify-between font-black text-[10px] opacity-40 uppercase bg-white/5 p-5 rounded-2xl tracking-widest">
-                  <span>{t.seller}: {selectedProduct.seller_name}</span>
-                  <span>{t.location}: {selectedProduct.location}</span>
+              <div className="flex-1 space-y-6 md:space-y-8" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                <h2 className="text-4xl md:text-6xl font-black italic">{selectedProduct.name}</h2>
+                <div className="bg-white/5 p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] border border-white/5">
+                  <p className="text-amber-500 text-3xl md:text-4xl font-black mb-4">{selectedProduct.price} {t.price}</p>
+                  <p className="opacity-60 leading-relaxed text-sm md:text-lg">{selectedProduct.description}</p>
                 </div>
-                <a href={`https://wa.me/${selectedProduct.whatsapp}`} target="_blank" className="block bg-[#25D366] text-black text-center py-6 rounded-[2.5rem] font-black text-2xl shadow-xl shadow-green-500/20 active:scale-95 transition-transform">{t.wa} ✨</a>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/5 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest opacity-40">{t.seller}: {selectedProduct.seller_name}</div>
+                  <div className="bg-white/5 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest opacity-40 text-center">{t.location} {selectedProduct.location}</div>
+                </div>
+                <motion.a 
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.95 }}
+                  href={`https://wa.me/${selectedProduct.whatsapp}`} target="_blank" 
+                  className="block bg-[#25D366] text-black text-center py-5 md:py-7 rounded-[2rem] md:rounded-[3rem] font-black text-xl md:text-2xl shadow-2xl shadow-green-500/20"
+                >
+                  {t.wa}
+                </motion.a>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Add Form */}
+      {/* Add Form - Redesigned for Mobile ✕ */}
       <AnimatePresence>
         {showAddForm && (
           <div className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-4">
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-[#0a0a0a] p-8 rounded-[3rem] w-full max-w-2xl border border-white/10 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-2xl font-black italic text-amber-500 mb-8 uppercase text-center tracking-tighter">{t.addTitle}</h2>
+            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="bg-[#0a0a0a] p-6 md:p-12 rounded-[3rem] w-full max-w-2xl border border-white/10 max-h-[90vh] overflow-y-auto relative shadow-2xl">
+              <button onClick={() => setShowAddForm(false)} className="absolute top-6 right-6 text-white/30 text-2xl hover:text-white transition-colors">✕</button>
+              <h2 className="text-xl md:text-2xl font-black italic text-amber-500 mb-8 uppercase text-center">{t.addTitle}</h2>
               <div className="space-y-4">
-                <label className="h-32 border-2 border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center bg-white/[0.02] cursor-pointer hover:border-amber-500/50 transition-all">
-                   <input type="file" multiple accept="image/*" className="hidden" onChange={(e) => setImageFiles(e.target.files)} />
-                   <p className="opacity-40 font-black text-[10px] uppercase text-center">{imageFiles ? `${imageFiles.length} Images Ready ✅` : t.uploadImg}</p>
+                <label className="h-32 md:h-40 border-2 border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center bg-white/[0.02] cursor-pointer">
+                   <input type="file" multiple className="hidden" onChange={(e) => setImageFiles(e.target.files)} />
+                   <p className="opacity-40 font-black text-[10px] uppercase">{imageFiles ? `${imageFiles.length} Selected` : t.uploadImg}</p>
                 </label>
-                <input type="text" placeholder={t.pSeller} className="w-full p-4 rounded-xl bg-white/5 border border-white/5 outline-none font-bold focus:border-amber-500/30" onChange={(e) => setFormData({...formData, seller_name: e.target.value})} />
-                <input type="text" placeholder={t.pName} className="w-full p-4 rounded-xl bg-white/5 border border-white/5 outline-none font-bold focus:border-amber-500/30" onChange={(e) => setFormData({...formData, name: e.target.value})} />
-                <textarea placeholder={t.pDesc} rows={3} className="w-full p-4 rounded-xl bg-white/5 border border-white/5 outline-none font-bold focus:border-amber-500/30" onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input type="text" placeholder={t.seller} className="w-full p-4 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold" onChange={(e) => setFormData({...formData, seller_name: e.target.value})} />
+                  <input type="text" placeholder="Product Name" className="w-full p-4 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold" onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                </div>
+                <textarea placeholder="Product Description..." rows={3} className="w-full p-4 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold" onChange={(e) => setFormData({...formData, description: e.target.value})} />
                 <div className="grid grid-cols-2 gap-4">
-                  <input type="number" placeholder={t.pPrice} className="w-full p-4 rounded-xl bg-white/5 border border-white/5 outline-none font-bold" onChange={(e) => setFormData({...formData, price: e.target.value})} />
-                  <input type="tel" placeholder={t.pWa} className="w-full p-4 rounded-xl bg-white/5 border border-white/5 outline-none font-bold" onChange={(e) => setFormData({...formData, whatsapp: e.target.value})} />
+                  <input type="number" placeholder="Price" className="w-full p-4 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold" onChange={(e) => setFormData({...formData, price: e.target.value})} />
+                  <input type="tel" placeholder="WhatsApp" className="w-full p-4 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold" onChange={(e) => setFormData({...formData, whatsapp: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <select className="p-4 rounded-xl bg-neutral-900 border border-white/5 font-bold text-xs" onChange={(e) => setFormData({...formData, category: e.target.value})}>
+                  <select className="p-4 rounded-2xl bg-neutral-900 border border-white/5 font-bold text-[10px]" onChange={(e) => setFormData({...formData, category: e.target.value})}>
                     {CATEGORIES[lang].slice(1).map((c, i) => <option key={i} value={CATEGORIES.ar[i+1]}>{c}</option>)}
                   </select>
-                  <select className="p-4 rounded-xl bg-neutral-900 border border-white/5 font-bold text-xs" onChange={(e) => setFormData({...formData, location: e.target.value})}>
+                  <select className="p-4 rounded-2xl bg-neutral-900 border border-white/5 font-bold text-[10px]" onChange={(e) => setFormData({...formData, location: e.target.value})}>
                     {MUNICIPALITIES[lang].map((m, i) => <option key={i} value={MUNICIPALITIES.ar[i]}>{m}</option>)}
                   </select>
                 </div>
-                <button onClick={handlePublish} disabled={isActionLoading} className="w-full py-6 bg-amber-500 text-black font-black rounded-2xl shadow-xl hover:bg-amber-400 transition-colors uppercase tracking-widest text-sm">{isActionLoading ? "Publishing..." : t.publish}</button>
-                <button onClick={() => setShowAddForm(false)} className="w-full py-2 text-white/10 font-black text-[9px] uppercase tracking-widest">Cancel</button>
+                <motion.button whileTap={{ scale: 0.95 }} onClick={handlePublish} disabled={isActionLoading} className="w-full py-6 bg-amber-500 text-black font-black rounded-[2rem] shadow-xl uppercase tracking-widest text-xs">
+                  {isActionLoading ? "Publishing..." : t.publish}
+                </motion.button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Auth Modal */}
+      {/* Auth Modal - ✕ Styled */}
       <AnimatePresence>
         {showAuthModal && (
-          <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 text-center">
-            <div className="bg-[#0a0a0a] p-12 rounded-[4rem] w-full max-w-sm border border-white/10 shadow-2xl">
-              <h2 className="text-2xl font-black mb-10 italic text-amber-500 tracking-tighter">MILA STORE</h2>
+          <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#0a0a0a] p-10 rounded-[3rem] w-full max-w-sm border border-white/10 relative text-center">
+              <button onClick={() => setShowAuthModal(false)} className="absolute top-6 right-6 text-white/20 text-xl">✕</button>
+              <h2 className="text-2xl font-black mb-8 italic text-amber-500 tracking-tighter uppercase">Mila Store</h2>
               <div className="space-y-4">
-                <input dir="ltr" type="email" placeholder="Email Address" className="w-full p-6 rounded-2xl bg-white/5 outline-none font-bold text-center border border-white/5" onChange={(e) => setEmail(e.target.value)} />
-                <input dir="ltr" type="password" placeholder="Password" className="w-full p-6 rounded-2xl bg-white/5 outline-none font-bold text-center border border-white/5" onChange={(e) => setPassword(e.target.value)} />
-                <button onClick={handleAuth} className="w-full bg-white text-black py-6 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">{isSignUp ? 'Sign Up' : 'Login'}</button>
+                <input dir="ltr" type="email" placeholder="Email Address" className="w-full p-5 rounded-2xl bg-white/5 outline-none font-bold text-center border border-white/5" onChange={(e) => setEmail(e.target.value)} />
+                <input dir="ltr" type="password" placeholder="Password" className="w-full p-5 rounded-2xl bg-white/5 outline-none font-bold text-center border border-white/5" onChange={(e) => setPassword(e.target.value)} />
+                <motion.button whileTap={{ scale: 0.95 }} onClick={handleAuth} className="w-full bg-white text-black py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest">
+                  {isSignUp ? 'Sign Up' : 'Login'}
+                </motion.button>
               </div>
-              <button onClick={() => setIsSignUp(!isSignUp)} className="text-[10px] font-black text-amber-500/60 mt-8 underline">{isSignUp ? 'Have an account? Login' : 'New here? Create account'}</button>
-              <button onClick={() => setShowAuthModal(false)} className="text-white/10 text-[9px] mt-6 block mx-auto uppercase tracking-tighter">Close</button>
-            </div>
+              <button onClick={() => setIsSignUp(!isSignUp)} className="text-[9px] font-black text-amber-500/60 mt-6 underline uppercase tracking-widest">{isSignUp ? 'Login' : 'Create account'}</button>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation */}
+      {/* Confirm Delete - ✕ Styled */}
       <AnimatePresence>
         {productToDelete && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/95 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#0f0f0f] border border-red-500/20 p-12 rounded-[4rem] text-center shadow-2xl max-w-xs w-full">
-              <div className="text-6xl mb-6">⚠️</div>
-              <h2 className="text-xl font-black italic mb-10 uppercase tracking-tighter">{t.delTitle}</h2>
-              <button onClick={forceDelete} disabled={isActionLoading} className="bg-red-600 text-white w-full py-5 rounded-3xl font-black mb-4 shadow-xl shadow-red-500/10 uppercase tracking-widest text-xs">
-                {isActionLoading ? "Deleting..." : t.confirm}
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/98">
+            <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="bg-[#0f0f0f] border border-red-500/20 p-10 rounded-[3rem] text-center shadow-2xl max-w-xs w-full">
+              <div className="text-5xl mb-6">⚠️</div>
+              <h2 className="text-lg font-black italic mb-8 uppercase tracking-tighter">{t.delTitle}</h2>
+              <button onClick={forceDelete} className="bg-red-600 text-white w-full py-4 rounded-2xl font-black mb-3 uppercase tracking-widest text-[10px]">
+                {t.confirm}
               </button>
-              <button onClick={() => setProductToDelete(null)} className="text-white/20 font-black text-[10px] uppercase tracking-widest">Cancel</button>
+              <button onClick={() => setProductToDelete(null)} className="text-white/20 font-black text-[9px] uppercase tracking-widest">✕ {t.cancel}</button>
             </motion.div>
           </div>
         )}
