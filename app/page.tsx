@@ -1,105 +1,109 @@
 "use client";
 
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const municipalities = [
-  "ميلة المركز", "شلغوم العيد", "فرجيوة", "تاجنانت", "تلاغمة", 
-  "القرارم قوقة", "وادي العثمانية", "سيدي مروان", "زغاية"
+const municipalities = ["ميلة المركز", "شلغوم العيد", "فرجيوة", "تاجنانت", "تلاغمة", "القرارم قوقة", "وادي العثمانية", "سيدي مروان", "زغاية"];
+
+// عينة لمنتجات تجريبية لتظهر في المتجر
+const initialProducts = [
+  { id: 1, name: "هاتف ذكي", price: "45000", location: "ميلة المركز", image: "📱" },
+  { id: 2, name: "حذاء رياضي", price: "5500", location: "شلغوم العيد", image: "👟" },
+  { id: 3, name: "ساعة يد", price: "12000", location: "فرجيوة", image: "⌚" },
 ];
 
 export default function Home() {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [selectedMun, setSelectedMun] = useState(municipalities[0]);
-  const [showSellerSection, setShowSellerSection] = useState(false);
-
-  const sellerWhatsApp = "213550031200"; 
-
-  const handleOrder = () => {
-    if(!name || !phone) { alert("يرجى ملء البيانات"); return; }
-    const message = `طلب جديد من ميلة ستور:%0A- الاسم: ${name}%0A- الهاتف: ${phone}%0A- البلدية: ${selectedMun}`;
-    window.open(`https://wa.me/${sellerWhatsApp}?text=${message}`, '_blank');
-  };
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [products, setProducts] = useState(initialProducts);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#050505] text-white p-6 font-sans" dir="rtl">
+    <main className="min-h-screen bg-[#050505] text-white font-sans p-4 md:p-8" dir="rtl">
       
-      {/* القسم العلوي - اللوجو والاسم الجديد */}
-      <div className="absolute top-8 flex items-center gap-2 border border-amber-500/30 px-4 py-1 rounded-full bg-amber-500/5">
-        <div className="w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
-        <span className="text-amber-500 font-bold tracking-widest text-sm">MILA MARKET HUB</span>
-      </div>
-
-      <div className="text-center space-y-10 max-w-2xl w-full mt-20">
+      {/* الهيدر (الشعار وزر الإضافة) */}
+      <header className="max-w-7xl mx-auto flex justify-between items-center mb-12">
+        <motion.h1 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="text-3xl font-black italic tracking-tighter"
+        >
+          MILA <span className="text-amber-500">STORE</span>
+        </motion.h1>
         
-        {/* الاسم الجديد العصري */}
-        <h1 className="text-6xl md:text-7xl font-black tracking-tighter leading-none italic">
-          MILA <span className="text-amber-500 underline decoration-white/20">STORE</span>
-        </h1>
+        <motion.button 
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+          onClick={() => setShowAddForm(true)}
+          className="bg-amber-500 text-black px-6 py-2 rounded-full font-bold shadow-lg shadow-amber-500/20"
+        >
+          + أضف منتجك
+        </motion.button>
+      </header>
 
-        <p className="text-gray-500 text-lg">سوق ميلة الرقمي - البيع والشراء بكل ثقة</p>
-
-        {/* واجهة المشتري (الطلب) */}
-        {!showSellerSection ? (
-          <div className="bg-white/[0.03] p-8 rounded-[2.5rem] border border-white/10 space-y-6 backdrop-blur-xl shadow-2xl">
-            <h2 className="text-xl font-bold text-amber-500">تأكيد طلبك السريع</h2>
-            <input 
-              type="text" placeholder="اسمك الكامل" 
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500 outline-none transition"
-              onChange={(e) => setName(e.target.value)}
-            />
-            <input 
-              type="text" placeholder="رقم الهاتف" 
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500 outline-none transition"
-              onChange={(e) => setPhone(e.target.value)}
-            />
-            <select 
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500 outline-none transition appearance-none cursor-pointer"
-              onChange={(e) => setSelectedMun(e.target.value)}
+      {/* قسم عرض المنتجات */}
+      <div className="max-w-7xl mx-auto">
+        <h2 className="text-xl text-gray-400 mb-6 mr-2">أحدث المنتجات في ولاية ميلة:</h2>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {products.map((product) => (
+            <motion.div 
+              key={product.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-neutral-900/50 border border-white/5 rounded-3xl p-6 hover:border-amber-500/30 transition-all group"
             >
-              {municipalities.map(m => <option key={m} value={m} className="bg-black text-white">{m}</option>)}
-            </select>
-            <button 
-              onClick={handleOrder}
-              className="w-full py-5 bg-amber-500 text-black font-black rounded-2xl shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-all text-xl"
-            >
-              إرسال الطلب عبر واتساب
-            </button>
-            
-            <button 
-              onClick={() => setShowSellerSection(true)}
-              className="text-sm text-gray-500 hover:text-white underline transition"
-            >
-              هل أنت بائع؟ أضف منتجاتك هنا
-            </button>
-          </div>
-        ) : (
-          /* واجهة البائع (إضافة منتجات) - لوحة تحكم مصغرة */
-          <div className="bg-amber-500 p-8 rounded-[2.5rem] text-black space-y-6 shadow-2xl animate-in fade-in zoom-in duration-300">
-            <h2 className="text-2xl font-black italic">لوحة تحكم الباعة</h2>
-            <div className="space-y-4">
-              <input type="text" placeholder="اسم المنتج" className="w-full p-4 bg-white/20 border border-black/10 rounded-2xl placeholder-black/50 outline-none" />
-              <input type="number" placeholder="السعر (دج)" className="w-full p-4 bg-white/20 border border-black/10 rounded-2xl placeholder-black/50 outline-none" />
-              <div className="w-full p-8 border-2 border-dashed border-black/20 rounded-2xl text-center cursor-pointer hover:bg-white/10 transition">
-                + ارفع صورة المنتج
+              <div className="h-48 bg-black/40 rounded-2xl mb-4 flex items-center justify-center text-6xl group-hover:scale-110 transition-transform">
+                {product.image}
               </div>
-            </div>
-            <button className="w-full py-4 bg-black text-white font-bold rounded-2xl">نشر المنتج في المتجر</button>
-            <button 
-              onClick={() => setShowSellerSection(false)}
-              className="text-sm font-bold underline"
-            >
-              العودة لصفحة الشراء
-            </button>
-          </div>
-        )}
-
-        <div className="flex justify-center gap-8 text-xs text-gray-600 font-bold uppercase tracking-widest">
-          <span>COD SERVICE</span>
-          <span>MILA PROVINCE</span>
-          <span>SECURE HUB</span>
+              <h3 className="text-xl font-bold mb-1">{product.name}</h3>
+              <div className="flex justify-between items-center mb-4 text-sm text-gray-500">
+                <span className="text-amber-500 font-bold">{product.price} دج</span>
+                <span>📍 {product.location}</span>
+              </div>
+              <button 
+                onClick={() => alert(`سيتم فتح تفاصيل ${product.name} مع رقم الواتساب قريباً`)}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold transition-colors"
+              >
+                تفاصيل المنتج
+              </button>
+            </motion.div>
+          ))}
         </div>
       </div>
+
+      {/* نافذة إضافة منتج (تظهر للجميع) */}
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
+              className="bg-neutral-900 border border-white/10 p-8 rounded-[2.5rem] w-full max-w-lg relative"
+            >
+              <button onClick={() => setShowAddForm(false)} className="absolute top-6 left-6 text-gray-500">✕</button>
+              
+              <h2 className="text-2xl font-black mb-6 text-amber-500">انشر منتجك الآن</h2>
+              
+              <div className="space-y-4">
+                <input type="text" placeholder="ماذا تبيع؟ (اسم المنتج)" className="w-full p-4 bg-black border border-white/10 rounded-2xl focus:border-amber-500 outline-none" />
+                <input type="number" placeholder="السعر بالدينار" className="w-full p-4 bg-black border border-white/10 rounded-2xl focus:border-amber-500 outline-none" />
+                <select className="w-full p-4 bg-black border border-white/10 rounded-2xl focus:border-amber-500 outline-none appearance-none">
+                  {municipalities.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <div className="w-full p-8 border-2 border-dashed border-white/10 rounded-2xl text-center text-gray-500 hover:bg-white/5 cursor-pointer">
+                  📸 ارفع صور المنتج
+                </div>
+                <button 
+                  onClick={() => setShowAddForm(false)}
+                  className="w-full py-4 bg-amber-500 text-black font-black rounded-2xl text-lg mt-4"
+                >
+                  نشر المنتج للجميع
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </main>
   );
 }
