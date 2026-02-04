@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-// قائمة بلديات ميلة
+// قائمة بلديات ولاية ميلة
 const municipalities = [
   "ميلة المركز", "شلغوم العيد", "فرجيوة", "تاجنانت", "تلاغمة", 
   "القرارم قوقة", "وادي العثمانية", "سيدي مروان", "زغاية"
@@ -11,12 +11,12 @@ export default function Home() {
   const [phone, setPhone] = useState('');
   const [selectedMun, setSelectedMun] = useState(municipalities[0]);
 
-  // هنا يمكنك تغيير الرقم حسب البائع (حالياً وضعنا رقمك كمثال)
+  // استبدل الرقم التالي برقمك (ابدأ بـ 213)
   const sellerWhatsApp = "213XXXXXXXXX"; 
 
   const handleOrder = () => {
     if(!name || !phone) {
-      alert("يرجى ملء الاسم والهاتف أولاً");
+      alert("يرجى إدخال الاسم ورقم الهاتف لإتمام الطلب");
       return;
     }
     const message = `طلب جديد من ميلة ستور:%0A- الاسم: ${name}%0A- الهاتف: ${phone}%0A- البلدية: ${selectedMun}`;
@@ -24,62 +24,71 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0a0a0a] text-white p-6 font-sans" dir="rtl">
-      <div className="text-center space-y-8 max-w-2xl w-full">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0a0a0a] text-white p-6" dir="rtl">
+      <div className="text-center space-y-10 max-w-2xl w-full">
         
-        {/* العنوان الراقي الذي طلبته سابقاً */}
-        <h1 className="text-5xl md:text-7xl font-black tracking-tight">
+        {/* العنوان الفخم (لم يحذف) */}
+        <h1 className="text-6xl md:text-8xl font-black tracking-tight leading-none">
           ميلة ستور <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500">
             عنوان الفخامة
           </span>
         </h1>
 
-        <p className="text-gray-400 text-lg md:text-xl font-light">
-          وجهتكم الأولى في ميلة - اطلب الآن وادفع عند الاستلام
+        <p className="text-gray-400 text-xl font-light leading-relaxed">
+          نسقنا لك مجموعة استثنائية تليق بذوقك الرفيع. اطلب الآن واستلم في بلديتك.
         </p>
 
-        {/* نموذج الطلب المدمج بتصميم أنيق */}
-        <div className="bg-gray-900/50 p-8 rounded-2xl border border-gray-800 space-y-5 backdrop-blur-sm">
+        {/* نموذج الطلب المدمج بتصميم أنيق يتناسب مع الخلفية السوداء */}
+        <div className="bg-gray-900/40 p-8 rounded-3xl border border-gray-800 space-y-6 backdrop-blur-md shadow-2xl">
+          
           <div className="text-right">
-            <label className="text-sm text-amber-500 mb-2 block">الاسم الكامل</label>
+            <label className="text-sm text-amber-500 mb-2 block mr-2">الاسم الكامل</label>
             <input 
               type="text" 
-              placeholder="أدخل اسمك هنا"
-              className="w-full p-4 bg-black/40 border border-gray-700 rounded-xl focus:border-amber-500 outline-none transition"
+              placeholder="مثلاً: محمد ميلة"
+              className="w-full p-4 bg-black/60 border border-gray-700 rounded-2xl focus:border-amber-500 outline-none transition text-white"
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
           <div className="text-right">
-            <label className="text-sm text-amber-500 mb-2 block">رقم الهاتف</label>
+            <label className="text-sm text-amber-500 mb-2 block mr-2">رقم الهاتف</label>
             <input 
               type="text" 
-              placeholder="213550031200"
-              className="w-full p-4 bg-black/40 border border-gray-700 rounded-xl focus:border-amber-500 outline-none transition"
+              placeholder="06xxxxxxxx"
+              className="w-full p-4 bg-black/60 border border-gray-700 rounded-2xl focus:border-amber-500 outline-none transition text-white"
               onChange={(e) => setPhone(e.target.value)}
             />
           </div>
 
-          <div className="text-right">
-            <label className="text-sm text-amber-500 mb-2 block">اختر البلدية</label>
+          <div className="text-right relative">
+            <label className="text-sm text-amber-500 mb-2 block mr-2">اختر بلديتك في ميلة</label>
             <select 
-              className="w-full p-4 bg-black/40 border border-gray-700 rounded-xl focus:border-amber-500 outline-none transition appearance-none"
+              className="w-full p-4 bg-black/60 border border-gray-700 rounded-2xl focus:border-amber-500 outline-none transition text-white appearance-none cursor-pointer"
               onChange={(e) => setSelectedMun(e.target.value)}
             >
-              {municipalities.map(m => <option key={m} value={m}>{m}</option>)}
+              {municipalities.map(m => <option key={m} value={m} className="bg-gray-900">{m}</option>)}
             </select>
+            {/* سهم صغير لجمالية القائمة */}
+            <div className="absolute left-4 top-12 pointer-events-none text-amber-500">▼</div>
           </div>
 
           <button 
             onClick={handleOrder}
-            className="w-full py-5 bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold rounded-xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all text-xl mt-4"
+            className="w-full py-5 bg-gradient-to-r from-amber-400 to-amber-600 text-black font-extrabold rounded-2xl shadow-xl hover:scale-[1.03] transition-all text-xl mt-4"
           >
-            تأكيد الطلب عبر واتساب
+            تأكيد الطلب (دفع عند الاستلام)
           </button>
         </div>
 
-        <p className="text-gray-600 text-sm">التوصيل متوفر لجميع بلديات ولاية ميلة 🚚</p>
+        <div className="flex items-center justify-center gap-4 text-gray-500 text-sm italic">
+          <span>التوصيل متوفر</span>
+          <div className="h-1 w-1 bg-gray-700 rounded-full"></div>
+          <span>منتجات أصلية</span>
+          <div className="h-1 w-1 bg-gray-700 rounded-full"></div>
+          <span>ميلة ستور 2026</span>
+        </div>
       </div>
     </main>
   );
