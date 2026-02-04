@@ -55,7 +55,7 @@ export default function Home() {
             <label className="text-sm text-amber-500 mb-2 block">رقم الهاتف</label>
             <input 
               type="text" 
-              placeholder="06xxxxxxxx"
+              placeholder="213550031200"
               className="w-full p-4 bg-black/40 border border-gray-700 rounded-xl focus:border-amber-500 outline-none transition"
               onChange={(e) => setPhone(e.target.value)}
             />
