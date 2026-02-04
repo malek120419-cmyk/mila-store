@@ -23,6 +23,9 @@ export default function MilaStore() {
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false); // للتبديل بين تسجيل الدخول وإنشاء حساب
+  const [authError, setAuthError] = useState(''); // لعرض رسائل الخطأ
+
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -58,7 +61,6 @@ export default function MilaStore() {
     setLoading(false);
   };
 
-  // --- دالة ضغط الصور الأساسية ---
   const compressImage = (file: File): Promise<Blob> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -80,17 +82,34 @@ export default function MilaStore() {
     });
   };
 
-  const handleLogin = async () => {
+  // --- دالة تسجيل الدخول / إنشاء الحساب المحمية ---
+  const handleAuth = async () => {
+    setAuthError('');
+    if (!email.includes('@')) return setAuthError('يرجى إدخال بريد إلكتروني صحيح');
+    if (password.length < 6) return setAuthError('كلمة السر يجب أن تكون 6 خانات على الأقل');
+
     setIsActionLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) await supabase.auth.signUp({ email, password });
-    setShowAuthModal(false);
+    let result;
+    
+    if (isSignUp) {
+      result = await supabase.auth.signUp({ email, password });
+    } else {
+      result = await supabase.auth.signInWithPassword({ email, password });
+    }
+
+    if (result.error) {
+      setAuthError(result.error.message === 'Invalid login credentials' ? 'البريد أو كلمة السر غير صحيحة' : result.error.message);
+    } else {
+      setShowAuthModal(false);
+      setEmail('');
+      setPassword('');
+    }
     setIsActionLoading(false);
   };
 
   const handlePublish = async () => {
     if (!formData.name || !formData.price || !imageFile || !formData.seller_name) return alert("يرجى ملء كافة الخانات");
-    if (!/^(05|06|07)\d{8}$/.test(formData.whatsapp)) return alert("رقم الهاتف غير صحيح (يجب أن يبدأ بـ 05، 06، أو 07 ويتكون من 10 أرقام)");
+    if (!/^(05|06|07)\d{8}$/.test(formData.whatsapp)) return alert("رقم الهاتف غير صحيح");
     
     setIsActionLoading(true);
     try {
@@ -134,7 +153,7 @@ export default function MilaStore() {
     return matchesCategory && matchesSearch && matchesMyAds;
   });
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-black text-amber-500 font-black italic text-3xl animate-pulse">MILA STORE</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-black text-amber-500 font-black italic text-3xl animate-pulse tracking-tighter">MILA STORE</div>;
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-[#050505] text-white' : 'bg-gray-50 text-black'} transition-all`} dir="rtl">
@@ -143,6 +162,7 @@ export default function MilaStore() {
       <nav className="p-6 sticky top-0 z-[100] backdrop-blur-3xl border-b border-white/5 bg-inherit/80 flex justify-between items-center max-w-7xl mx-auto">
         <h1 className="text-2xl font-black italic tracking-tighter">MILA <span className="text-amber-500 font-normal">STORE</span></h1>
         <div className="flex gap-4 items-center">
+          {user && <button onClick={() => supabase.auth.signOut()} className="text-[10px] opacity-40 font-black uppercase tracking-widest hover:opacity-100 transition-opacity">خروج</button>}
           <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-xl">{isDarkMode ? '🌞' : '🌚'}</button>
           <button onClick={() => user ? setShowAddForm(true) : setShowAuthModal(true)} className="bg-amber-500 text-black px-6 py-2 rounded-full font-black text-xs active:scale-90 transition-all shadow-lg">بيع منتج +</button>
         </div>
@@ -187,14 +207,13 @@ export default function MilaStore() {
         </AnimatePresence>
       </main>
 
-      {/* Product Details Page */}
+      {/* Details & Modals Section (Keep strong animations) */}
       <AnimatePresence>
         {selectedProduct && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black overflow-y-auto">
-            <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} onClick={() => setSelectedProduct(null)} className="fixed top-8 right-8 z-[310] bg-white/10 backdrop-blur-2xl text-white w-14 h-14 rounded-full flex items-center justify-center border border-white/10 shadow-3xl">
+            <motion.button initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} onClick={() => setSelectedProduct(null)} className="fixed top-8 right-8 z-[310] bg-white/10 backdrop-blur-2xl text-white w-14 h-14 rounded-full flex items-center justify-center border border-white/10 shadow-3xl transition-all">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </motion.button>
-
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", damping: 30 }} className={`min-h-screen w-full ${isDarkMode ? 'bg-[#050505]' : 'bg-white text-black'} p-6 md:p-20`}>
               <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-16">
                 <motion.img initial={{ scale: 0.9 }} animate={{ scale: 1 }} src={selectedProduct.image_url} className="w-full lg:w-1/2 aspect-square object-cover rounded-[3.5rem] shadow-3xl border border-white/5" />
@@ -203,10 +222,7 @@ export default function MilaStore() {
                   <p className="text-amber-500 text-4xl font-black">{selectedProduct.price} دج</p>
                   <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/5 italic opacity-80">{selectedProduct.description}</div>
                   <div className="flex justify-between font-black text-xs opacity-40"><span>البائع: {selectedProduct.seller_name}</span><span>📍 {selectedProduct.location}</span></div>
-                  <a href={`https://wa.me/${selectedProduct.whatsapp}`} className="block bg-[#25D366] text-black text-center py-6 rounded-[2rem] font-black text-2xl shadow-2xl hover:scale-105 transition-all">واتساب</a>
-                  <div className="flex justify-center gap-4">
-                    {[1,2,3,4,5].map(s => <button key={s} onClick={() => handleRate(selectedProduct.id, s)} className={`text-4xl ${(selectedProduct.rating_sum/selectedProduct.rating_count) >= s ? 'text-amber-500' : 'text-white/10'}`}>★</button>)}
-                  </div>
+                  <a href={`https://wa.me/${selectedProduct.whatsapp}`} className="block bg-[#25D366] text-black text-center py-6 rounded-[2rem] font-black text-2xl shadow-2xl">واتساب</a>
                 </div>
               </div>
             </motion.div>
@@ -214,24 +230,37 @@ export default function MilaStore() {
         )}
       </AnimatePresence>
 
-      {/* Delete Modal - Cinematic */}
+      {/* --- Auth Modal: المحمي والجديد --- */}
       <AnimatePresence>
-        {productToDelete && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-3xl">
-            <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#0f0f0f] border border-red-500/30 p-12 rounded-[3.5rem] max-w-md w-full text-center shadow-2xl">
-              <div className="text-7xl mb-6">⚠️</div>
-              <h2 className="text-2xl font-black italic mb-4">حذف المنتج؟</h2>
-              <p className="text-white/40 font-bold mb-10 text-sm italic">سيختفي المنتج نهائياً من Mila Store فوراً.</p>
-              <div className="flex flex-col gap-3">
-                <button onClick={confirmDelete} className="bg-red-500 text-white py-5 rounded-2xl font-black text-lg active:scale-95 transition-all">نعم، احذف المنتج</button>
-                <button onClick={() => setProductToDelete(null)} className="text-white/30 py-4 font-black text-xs">تراجع</button>
+        {showAuthModal && (
+          <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 text-center">
+            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#0a0a0a] p-10 md:p-14 rounded-[3.5rem] w-full max-w-sm border border-white/10 shadow-3xl">
+              <h2 className="text-2xl font-black mb-2 italic text-amber-500 uppercase tracking-tighter">Mila Store</h2>
+              <p className="text-[10px] text-white/30 font-black uppercase mb-10 tracking-[0.2em]">{isSignUp ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}</p>
+              
+              {authError && <motion.p initial={{ x: 10 }} animate={{ x: 0 }} className="bg-red-500/10 text-red-500 text-[10px] p-3 rounded-xl mb-6 font-bold">{authError}</motion.p>}
+
+              <div className="space-y-4">
+                <input type="email" placeholder="البريد الإلكتروني" className="w-full p-6 rounded-2xl bg-white/5 outline-none font-bold text-center focus:bg-white/10 transition-all border border-white/5" onChange={(e) => setEmail(e.target.value)} />
+                <input type="password" placeholder="كلمة السر" className="w-full p-6 rounded-2xl bg-white/5 outline-none font-bold text-center focus:bg-white/10 transition-all border border-white/5" onChange={(e) => setPassword(e.target.value)} />
+                
+                <button onClick={handleAuth} disabled={isActionLoading} className="w-full bg-white text-black py-6 rounded-2xl font-black active:scale-95 transition-all shadow-xl">
+                  {isActionLoading ? 'جاري المعالجة...' : (isSignUp ? 'تأكيد التسجيل' : 'دخول للمتجر')}
+                </button>
               </div>
+
+              <div className="mt-8 pt-8 border-t border-white/5">
+                <button onClick={() => setIsSignUp(!isSignUp)} className="text-[10px] font-black text-amber-500/60 hover:text-amber-500 transition-colors">
+                  {isSignUp ? 'لديك حساب؟ سجل دخولك' : 'ليس لديك حساب؟ اشترك الآن'}
+                </button>
+              </div>
+              <button onClick={() => {setShowAuthModal(false); setAuthError('');}} className="text-white/10 text-[9px] mt-6 uppercase tracking-widest font-black">إغلاق</button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Add Product Form */}
+      {/* --- Add Product Form --- */}
       <AnimatePresence>
         {showAddForm && (
           <div className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-4">
@@ -269,28 +298,28 @@ export default function MilaStore() {
         )}
       </AnimatePresence>
 
-      {/* Auth Modal & Success View (كما في الكود السابق لضمان الثبات) */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <div className="fixed inset-0 z-[500] bg-black/95 flex items-center justify-center p-6 text-center">
-            <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="bg-[#0a0a0a] p-12 rounded-[3.5rem] w-full max-w-sm border border-white/10 shadow-3xl">
-              <h2 className="text-2xl font-black mb-10 italic text-amber-500 uppercase">Mila Member</h2>
-              <div className="space-y-4">
-                <input type="email" placeholder="البريد" className="w-full p-6 rounded-2xl bg-white/5 outline-none font-bold text-center" onChange={(e) => setEmail(e.target.value)} />
-                <input type="password" placeholder="كلمة السر" className="w-full p-6 rounded-2xl bg-white/5 outline-none font-bold text-center" onChange={(e) => setPassword(e.target.value)} />
-                <button onClick={handleLogin} className="w-full bg-white text-black py-6 rounded-2xl font-black active:scale-95 transition-all">دخول / تسجيل</button>
-              </div>
-              <button onClick={() => setShowAuthModal(false)} className="text-white/20 text-xs mt-8">إغلاق</button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       <AnimatePresence>
         {showSuccess && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[600] bg-black flex items-center justify-center text-center">
              <div><div className="text-8xl mb-6">✨</div><h2 className="text-3xl font-black italic uppercase tracking-tighter">Product Published</h2></div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Modal */}
+      <AnimatePresence>
+        {productToDelete && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-3xl">
+            <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#0f0f0f] border border-red-500/30 p-12 rounded-[3.5rem] max-w-md w-full text-center shadow-2xl">
+              <div className="text-7xl mb-6">⚠️</div>
+              <h2 className="text-2xl font-black italic mb-4">حذف المنتج؟</h2>
+              <p className="text-white/40 font-bold mb-10 text-sm italic">سيختفي المنتج نهائياً من المتجر فوراً.</p>
+              <div className="flex flex-col gap-3">
+                <button onClick={confirmDelete} className="bg-red-500 text-white py-5 rounded-2xl font-black text-lg active:scale-95 transition-all">نعم، احذف المنتج</button>
+                <button onClick={() => setProductToDelete(null)} className="text-white/30 py-4 font-black text-xs">تراجع</button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
