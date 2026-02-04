@@ -28,7 +28,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchProducts();
-    const savedLikes = localStorage.getItem('mila_likes_v2');
+    const savedLikes = localStorage.getItem('mila_likes_final');
     if (savedLikes) setLikedProducts(JSON.parse(savedLikes));
   }, []);
 
@@ -38,27 +38,30 @@ export default function Home() {
     setLoading(false);
   };
 
+  // --- إصلاح منطق الإعجاب والأنميشن ---
   const handleLike = async (productId: string, currentLikes: number) => {
     const isAlreadyLiked = likedProducts.includes(productId);
+    
+    // 1. التحديث المحلي الفوري (للواجهة)
     const newLikesCount = isAlreadyLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
+    const newLikedList = isAlreadyLiked 
+      ? likedProducts.filter(id => id !== productId) 
+      : [...likedProducts, productId];
 
-    // تحديث فوري في الواجهة (Optimistic Update)
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, likes_count: newLikesCount } : p));
+    setLikedProducts(newLikedList);
+    localStorage.setItem('mila_likes_final', JSON.stringify(newLikedList));
 
+    // 2. التحديث في قاعدة البيانات في الخلفية
     const { error } = await supabase
       .from('products')
       .update({ likes_count: newLikesCount })
       .eq('id', productId);
 
-    if (!error) {
-      const updatedLikes = isAlreadyLiked 
-        ? likedProducts.filter(id => id !== productId) 
-        : [...likedProducts, productId];
-      
-      setLikedProducts(updatedLikes);
-      localStorage.setItem('mila_likes_v2', JSON.stringify(updatedLikes));
-    } else {
-      fetchProducts(); // تراجع عن التغيير في حال الخطأ
+    if (error) {
+        console.error("Like error:", error);
+        // في حال فشل السيرفر نرجع البيانات للأصل
+        fetchProducts();
     }
   };
 
@@ -71,140 +74,119 @@ export default function Home() {
         img.src = e.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
+          const MAX_WIDTH = 700; // تقليل الحجم لسرعة الرفع
           const scale = MAX_WIDTH / img.width;
           canvas.width = MAX_WIDTH;
           canvas.height = img.height * scale;
           canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((blob) => resolve(blob as Blob), 'image/jpeg', 0.8);
+          canvas.toBlob((blob) => resolve(blob as Blob), 'image/jpeg', 0.6); // ضغط أقوى لضمان النجاح
         };
       };
     });
   };
 
   const handlePublish = async () => {
-    if (!productName || !productPrice || !imageFile || !whatsapp) return alert("يرجى ملء كافة الخانات");
+    if (!productName || !productPrice || !imageFile || !whatsapp) return alert("أكمل البيانات");
     setIsActionLoading(true);
     try {
       const compressed = await compressImage(imageFile);
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const fileName = `${Date.now()}.jpg`;
       
-      // استخدام الـ Bucket الجديد تماماً
-      const { error: uploadError } = await supabase.storage
+      // الرفع مع إعدادات صريحة لتفادي مشاكل الـ Bucket
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('mila-market-assets')
-        .upload(fileName, compressed, { contentType: 'image/jpeg' });
+        .upload(fileName, compressed, { cacheControl: '3600', upsert: false });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) throw new Error("مشكلة في الـ Bucket: " + uploadError.message);
 
       const { data: { publicUrl } } = supabase.storage.from('mila-market-assets').getPublicUrl(fileName);
 
       const { error: dbError } = await supabase.from('products').insert([{
-        name: productName,
-        price: parseFloat(productPrice),
-        location: productLocation, 
-        image_url: publicUrl,
-        whatsapp_number: whatsapp,
-        likes_count: 0
+        name: productName, price: parseFloat(productPrice), location: productLocation, 
+        image_url: publicUrl, whatsapp_number: whatsapp, likes_count: 0
       }]);
 
       if (dbError) throw dbError;
 
       setShowAddForm(false);
-      setProductName(''); setProductPrice(''); setImageFile(null); setWhatsapp('');
       fetchProducts();
-      alert("تم النشر بنجاح في ميلة ستور! 🎉");
+      alert("تم النشر بنجاح! 🎉");
     } catch (e: any) { 
-      alert("فشل الرفع: " + e.message + "\nتأكد من إنشاء Bucket باسم mila-market-assets وجعله Public");
+      alert(e.message);
     } finally { 
       setIsActionLoading(false); 
     }
   };
 
-  if (loading) return <div className="h-screen bg-[#050505] flex items-center justify-center text-amber-500 font-black tracking-widest animate-pulse text-2xl italic">MILA STORE...</div>;
+  if (loading) return <div className="h-screen bg-[#050505] flex items-center justify-center text-amber-500 font-black italic animate-pulse">MILA STORE...</div>;
 
   return (
-    <main className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#050505] text-white' : 'bg-[#f8f8f8] text-black'}`} dir="rtl">
-      <header className="max-w-7xl mx-auto p-6 flex flex-wrap justify-between items-center gap-6 sticky top-0 z-[100] backdrop-blur-xl border-b border-white/5">
-        <h1 className="text-4xl font-black italic tracking-tighter">MILA <span className="text-amber-500">STORE</span></h1>
-        <div className="flex gap-4 items-center">
-          <input 
-            type="text" 
-            placeholder="عن ماذا تبحث؟" 
-            className={`p-3 px-5 rounded-2xl outline-none text-sm border transition-all ${isDarkMode ? 'bg-white/5 border-white/10 focus:border-amber-500' : 'bg-black/5 border-black/10 focus:border-amber-500'}`} 
-            value={searchQuery} 
-            onChange={(e) => setSearchQuery(e.target.value)} 
-          />
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className="text-2xl hover:scale-110 transition-transform">{isDarkMode ? '🌙' : '☀️'}</button>
-          <button onClick={() => setShowAddForm(true)} className="bg-amber-500 text-black px-8 py-3 rounded-2xl font-black text-sm shadow-lg shadow-amber-500/20 active:scale-95 transition-all">بيع سلعة</button>
+    <main className={`min-h-screen ${isDarkMode ? 'bg-[#050505] text-white' : 'bg-white text-black'}`} dir="rtl">
+      <header className="max-w-7xl mx-auto p-6 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md">
+        <h1 className="text-3xl font-black italic">MILA <span className="text-amber-500">STORE</span></h1>
+        <div className="flex gap-3">
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-xl">{isDarkMode ? '🌙' : '☀️'}</button>
+          <button onClick={() => setShowAddForm(true)} className="bg-amber-500 text-black px-6 py-2 rounded-xl font-black text-xs">بيع سلعة</button>
         </div>
       </header>
 
-      <section className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 py-12">
-        <AnimatePresence>
-          {products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((product) => {
-            const isLiked = likedProducts.includes(product.id);
-            return (
-              <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} key={product.id} className={`p-5 rounded-[3rem] border group hover:shadow-2xl transition-all duration-500 ${isDarkMode ? 'bg-neutral-900/40 border-white/5' : 'bg-white border-black/5 shadow-xl shadow-black/5'}`}>
-                <div className="aspect-[4/5] rounded-[2.2rem] overflow-hidden mb-5 relative">
-                  <img src={product.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.name} />
-                  
-                  <motion.button 
-                    whileTap={{ scale: 0.7 }}
-                    onClick={() => handleLike(product.id, product.likes_count)} 
-                    className={`absolute top-5 left-5 p-3 px-4 rounded-2xl backdrop-blur-md flex items-center gap-2 transition-all ${isLiked ? 'bg-red-500 text-white shadow-lg shadow-red-500/40' : 'bg-black/40 text-white'}`}
-                  >
-                    <motion.span animate={isLiked ? { scale: [1, 1.5, 1] } : {}}>{isLiked ? '❤️' : '🤍'}</motion.span>
-                    <span className="text-sm font-black">{product.likes_count || 0}</span>
-                  </motion.button>
-                  
-                  <div className="absolute bottom-5 right-5 bg-amber-500 text-black px-4 py-1.5 rounded-full text-[10px] font-black italic shadow-lg">📍 {product.location}</div>
-                </div>
+      <div className="p-4 max-w-7xl mx-auto">
+         <input 
+            type="text" 
+            placeholder="ابحث هنا..." 
+            className={`w-full p-4 rounded-2xl outline-none border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/10'}`}
+            onChange={(e) => setSearchQuery(e.target.value)}
+         />
+      </div>
 
-                <div className="flex justify-between items-end mb-6 px-2">
-                  <div>
-                    <h3 className="text-2xl font-black tracking-tight">{product.name}</h3>
-                    <p className="opacity-40 text-[10px] mt-1 uppercase font-bold tracking-widest">التوفر: متوفر حالياً</p>
-                  </div>
-                  <span className="text-2xl font-black text-amber-500">{product.price} <small className="text-xs">دج</small></span>
-                </div>
+      <section className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 py-8">
+        {products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((product) => {
+          const isLiked = likedProducts.includes(product.id);
+          return (
+            <div key={product.id} className={`p-4 rounded-[2.5rem] border ${isDarkMode ? 'bg-neutral-900/40 border-white/5' : 'bg-white border-black/5 shadow-sm'}`}>
+              <div className="aspect-square rounded-[2rem] overflow-hidden mb-4 relative">
+                <img src={product.image_url} className="w-full h-full object-cover" alt="" />
+                
+                {/* زر الإعجاب فائق السرعة */}
+                <motion.button 
+                  whileTap={{ scale: 0.6 }} // أنميشن ضغطة سريع جداً
+                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                  onClick={() => handleLike(product.id, product.likes_count)} 
+                  className={`absolute top-4 left-4 p-2 px-3 rounded-xl backdrop-blur-md flex items-center gap-2 ${isLiked ? 'bg-red-500 text-white' : 'bg-black/50 text-white'}`}
+                >
+                  <span className="text-lg">{isLiked ? '❤️' : '🤍'}</span>
+                  <span className="font-bold text-sm">{product.likes_count || 0}</span>
+                </motion.button>
+              </div>
 
-                <a href={`https://wa.me/${product.whatsapp_number}`} target="_blank" className="w-full py-5 bg-[#25D366] text-white flex justify-center items-center gap-3 rounded-2xl font-black hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-green-500/20">
-                  تواصل عبر الواتساب 💬
-                </a>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+              <div className="flex justify-between items-center px-2 mb-4">
+                <h3 className="text-xl font-black">{product.name}</h3>
+                <span className="text-amber-500 font-black">{product.price} دج</span>
+              </div>
+
+              <a href={`https://wa.me/${product.whatsapp_number}`} target="_blank" className="block w-full text-center py-4 bg-[#25D366] text-white rounded-2xl font-black">واتساب 💬</a>
+            </div>
+          );
+        })}
       </section>
 
+      {/* نافذة الإضافة */}
       <AnimatePresence>
         {showAddForm && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] p-6 flex items-center justify-center bg-black/90 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className={`max-w-md w-full p-10 rounded-[3rem] space-y-6 ${isDarkMode ? 'bg-[#0a0a0a] border border-white/10' : 'bg-white text-black shadow-2xl'}`}>
-              <div className="flex justify-between items-center">
-                <h2 className="text-4xl font-black italic text-amber-500">نشر إعلان</h2>
-                <button onClick={() => setShowAddForm(false)} className="text-3xl opacity-30 hover:opacity-100 transition-opacity">✕</button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] p-6 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+            <div className={`max-w-md w-full p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-[#0a0a0a] border border-white/10' : 'bg-white'}`}>
+              <div className="flex justify-between mb-6">
+                <h2 className="text-2xl font-black text-amber-500">نشر إعلان</h2>
+                <button onClick={() => setShowAddForm(false)}>✕</button>
               </div>
-              
-              <div className="border-2 border-dashed border-gray-500/20 rounded-3xl p-8 text-center relative hover:border-amber-500 transition-colors group">
-                <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">📸</div>
-                <p className="font-bold opacity-50 text-sm">{imageFile ? `✅ جاهز: ${imageFile.name.substring(0,10)}...` : "اختر صورة السلعة"}</p>
-              </div>
-
-              <div className="space-y-4">
-                <input type="text" placeholder="اسم المنتج" className="w-full p-4 bg-gray-500/10 rounded-xl outline-none font-bold focus:ring-2 ring-amber-500/50" value={productName} onChange={(e)=>setProductName(e.target.value)} />
-                <input type="number" placeholder="السعر (دج)" className="w-full p-4 bg-gray-500/10 rounded-xl outline-none font-bold focus:ring-2 ring-amber-500/50" value={productPrice} onChange={(e)=>setProductPrice(e.target.value)} />
-                <input type="tel" placeholder="رقم واتساب" className="w-full p-4 bg-gray-500/10 rounded-xl outline-none font-bold text-green-500 focus:ring-2 ring-green-500/50" value={whatsapp} onChange={(e)=>setWhatsapp(e.target.value)} />
-                <select className="w-full p-4 bg-gray-500/10 rounded-xl outline-none font-bold" value={productLocation} onChange={(e)=>setProductLocation(e.target.value)}>
-                  {municipalities.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-
-              <button onClick={handlePublish} disabled={isActionLoading} className="w-full py-6 bg-amber-500 text-black font-black rounded-2xl shadow-xl shadow-amber-500/20 text-xl active:scale-95 transition-transform">
-                {isActionLoading ? "جاري الرفع الصاروخي... 🚀" : "انشر الآن"}
+              <input type="file" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="mb-4 block w-full text-sm text-gray-500" />
+              <input type="text" placeholder="اسم المنتج" className="w-full p-4 mb-3 rounded-xl bg-gray-500/10 outline-none" onChange={(e)=>setProductName(e.target.value)} />
+              <input type="number" placeholder="السعر" className="w-full p-4 mb-3 rounded-xl bg-gray-500/10 outline-none" onChange={(e)=>setProductPrice(e.target.value)} />
+              <input type="tel" placeholder="رقم الواتساب" className="w-full p-4 mb-6 rounded-xl bg-gray-500/10 outline-none" onChange={(e)=>setWhatsapp(e.target.value)} />
+              <button onClick={handlePublish} disabled={isActionLoading} className="w-full py-4 bg-amber-500 text-black font-black rounded-xl">
+                {isActionLoading ? "جاري الرفع..." : "انشر الآن"}
               </button>
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
