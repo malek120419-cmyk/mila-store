@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ReactNode } from 'react';
 import Image from "next/image";
-import { X, Copy, Share2, Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Copy, Share2, Phone, ChevronLeft, ChevronRight, Edit2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 // أيقونات جميلة تفاعلية
@@ -21,7 +21,7 @@ export const ModernIcon = ({ icon, label, onClick }: ModernIconProps) => (
         onClick?.();
       }
     }}
-    className="flex flex-col items-center gap-1 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-black"
+    className="flex flex-col items-center gap-1 cursor-pointer group focus:outline-none"
   >
     <div className="w-12 h-12 flex items-center justify-center text-xl bg-white/5 rounded-2xl group-hover:bg-amber-500 group-hover:text-black transition-all border border-white/5">
       {icon}
@@ -41,16 +41,20 @@ type Product = {
   category?: string;
   location?: string;
   additional_images?: string[];
+  user_id?: string;
 };
 type ProductDetailsProps = {
   product: Product | null;
   onClose: () => void;
   userRating: number;
   setUserRating: (rating: number) => void;
-  t: { price: string; wa: string; cash: string; toastCopied: string; toastShared: string; copyLabel: string; shareLabel: string; rateLabel: string };
+  t: { price: string; wa: string; cash: string; toastCopied: string; toastShared: string; copyLabel: string; shareLabel: string; rateLabel: string; editLabel?: string; deleteLabel?: string };
   dark?: boolean;
+  currentUserId?: string | null;
+  onEdit?: (product: Product) => void;
+  onDelete?: (product: Product) => void;
 };
-export const ProductDetails = ({ product, onClose, userRating, setUserRating, t, dark = true }: ProductDetailsProps) => {
+export const ProductDetails = ({ product, onClose, userRating, setUserRating, t, dark = true, currentUserId, onEdit, onDelete }: ProductDetailsProps) => {
   const [idx, setIdx] = useState(0);
   const [inlineToast, setInlineToast] = useState<{ id: number; text: string } | null>(null);
   useEffect(() => {
@@ -64,7 +68,7 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
   return (
     <AnimatePresence>
       {product && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[600] bg-black/98 backdrop-blur-3xl p-4 overflow-y-auto">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[600] bg-black/98 backdrop-blur-3xl p-4 overflow-y-auto no-scrollbar">
           <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onClose} className="fixed top-8 right-8 z-[610] bg-white/10 w-12 h-12 rounded-full text-white flex items-center justify-center">
             <X />
           </motion.button>
@@ -118,20 +122,21 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 <motion.a
                   whileHover={{ scale: 1.04 }}
-                  href={`https://wa.me/${product.whatsapp}`}
+                  whileTap={{ borderWidth: 0, scale: 0.98 }}
+                  href={`tel:${product.whatsapp}`}
                   target="_blank"
-                  aria-label="WhatsApp"
-                  className="inline-flex items-center gap-2 bg-gradient-to-br from-[#25D366] to-[#21c35b] text-black px-6 py-4 rounded-[2rem] font-black text-lg shadow-2xl border-2 border-green-700"
+                  aria-label="Phone"
+                  className="inline-flex items-center gap-2 bg-amber-500 text-black px-6 py-4 rounded-[2rem] font-black text-lg shadow-2xl border-2 border-amber-600"
                 >
                   <Phone size={18} />
                   <span>{t.wa}</span>
                 </motion.a>
                 <motion.button
                   whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.96 }}
-                  aria-label="Copy WhatsApp link"
+                  whileTap={{ scale: 0.96, borderWidth: 0 }}
+                  aria-label="Copy phone number"
                   onClick={() => {
-                    navigator.clipboard.writeText(`https://wa.me/${product.whatsapp}`).then(() => {
+                    navigator.clipboard.writeText(product.whatsapp).then(() => {
                       setInlineToast({ id: Date.now(), text: t.toastCopied });
                       setTimeout(() => setInlineToast(null), 1600);
                     });
@@ -143,16 +148,16 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.96 }}
+                  whileTap={{ scale: 0.96, borderWidth: 0 }}
                   aria-label="Share"
                   onClick={async () => {
-                    const shareData = { title: product.name, text: product.description || product.name, url: `https://wa.me/${product.whatsapp}` };
+                    const shareData = { title: product.name, text: product.description || product.name, url: `tel:${product.whatsapp}` };
                     if (navigator.share) {
                       await navigator.share(shareData);
                       setInlineToast({ id: Date.now(), text: t.toastShared });
                       setTimeout(() => setInlineToast(null), 1600);
                     } else {
-                      await navigator.clipboard.writeText(shareData.url);
+                      await navigator.clipboard.writeText(product.whatsapp);
                       setInlineToast({ id: Date.now(), text: t.toastCopied });
                       setTimeout(() => setInlineToast(null), 1600);
                     }
@@ -163,9 +168,33 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
                   <span>{t.shareLabel}</span>
                 </motion.button>
               </div>
+              {currentUserId && product.user_id === currentUserId && (
+                <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97, borderWidth: 0 }}
+                    aria-label={t.editLabel || "Edit"}
+                    onClick={() => onEdit?.(product)}
+                    className="inline-flex items-center gap-2 bg-amber-500 text-black px-5 py-3 rounded-[1.6rem] font-bold text-xs border border-amber-600"
+                  >
+                    <Edit2 size={14} />
+                    <span>{t.editLabel || "Edit"}</span>
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97, borderWidth: 0 }}
+                    aria-label={t.deleteLabel || "Delete"}
+                    onClick={() => onDelete?.(product)}
+                    className="inline-flex items-center gap-2 bg-red-500 text-black px-5 py-3 rounded-[1.6rem] font-bold text-xs border border-red-600"
+                  >
+                    <Trash2 size={14} />
+                    <span>{t.deleteLabel || "Delete"}</span>
+                  </motion.button>
+                </div>
+              )}
               <AnimatePresence>
                 {inlineToast && (
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed bottom-6 left-6 z-[700] bg-amber-500 text-black px-4 py-3 rounded-2xl shadow-2xl">
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' }} className="fixed left-6 z-[700] bg-amber-500 text-black px-4 py-3 rounded-2xl shadow-2xl">
                     <span className="font-black text-xs">{inlineToast.text}</span>
                   </motion.div>
                 )}

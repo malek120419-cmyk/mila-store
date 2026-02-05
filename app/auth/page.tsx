@@ -12,6 +12,8 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
   const [lang] = useState<"ar" | "en" | "fr">(() => {
     try {
       const saved = localStorage.getItem("lang") as "ar" | "en" | "fr" | null;
@@ -61,7 +63,7 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
     const { error } = isSignUp 
-      ? await supabase.auth.signUp({ email, password }) 
+      ? await supabase.auth.signUp({ email, password, options: { data: { username, phone, email_address: email } } }) 
       : await supabase.auth.signInWithPassword({ email, password });
     
     if (error) alert(error.message);
@@ -79,7 +81,15 @@ export default function AuthPage() {
         <p className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-12">{t.tagline}</p>
         
         <form onSubmit={handleAuth} className="space-y-4">
-          <input type="email" placeholder={t.email} onChange={(e)=>setEmail(e.target.value)} className="w-full p-6 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold text-white text-center" required />
+          {isSignUp ? (
+            <>
+              <input type="text" placeholder={lang === "ar" ? "اسم المستخدم" : lang === "fr" ? "Nom d’utilisateur" : "Username"} onChange={(e)=>setUsername(e.target.value)} className="w-full p-6 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold text-white text-center" />
+              <input type="text" placeholder={lang === "ar" ? "رقم الهاتف" : lang === "fr" ? "Numéro de téléphone" : "Phone number"} onChange={(e)=>setPhone(e.target.value)} className="w-full p-6 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold text-white text-center" />
+              <input type="email" placeholder={t.email} onChange={(e)=>setEmail(e.target.value)} className="w-full p-6 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold text-white text-center" required />
+            </>
+          ) : (
+            <input type="email" placeholder={t.email} onChange={(e)=>setEmail(e.target.value)} className="w-full p-6 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold text-white text-center" required />
+          )}
           <input type="password" placeholder={t.password} onChange={(e)=>setPassword(e.target.value)} className="w-full p-6 rounded-2xl bg-white/5 border border-white/5 outline-none font-bold text-white text-center" required />
           <button type="submit" disabled={loading} className="w-full bg-amber-500 text-black py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-amber-400 transition-all">
             {loading ? t.processing : (isSignUp ? t.signUp : t.signIn)}
