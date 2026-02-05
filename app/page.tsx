@@ -2,24 +2,51 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ModernIcon, ProductDetails, AddProductModal } from './MilaEngine';
-import { SearchBar, CategoryBar } from './MilaLogic';
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!, 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-export default function MilaStore() {
-  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+// --- تصحيح الشادو والأنيميشن ---
+
+const GlassCard = ({ children, onClick }: any) => (
+  <motion.div 
+    whileHover={{ 
+      y: -12, 
+      boxShadow: "0px 20px 40px rgba(245, 158, 11, 0.15)", // توهج ذهبي خفيف بدل الخطأ السابق
+      borderColor: "rgba(245, 158, 11, 0.4)" 
+    }}
+    onClick={onClick}
+    className="bg-[#121212] border border-white/5 rounded-[2.5rem] overflow-hidden cursor-pointer transition-all duration-500 shadow-2xl"
+  >
+    {children}
+  </motion.div>
+);
+
+const MilaButton = ({ children, onClick, primary = false, className = "" }: any) => (
+  <motion.button
+    whileHover={{ scale: 1.05, boxShadow: primary ? "0px 10px 20px rgba(245, 158, 11, 0.3)" : "0px 10px 20px rgba(255, 255, 255, 0.05)" }}
+    whileTap={{ scale: 0.95 }}
+    onClick={onClick}
+    className={`px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${
+      primary ? "bg-amber-500 text-black" : "bg-white/5 text-white border border-white/10"
+    } ${className}`}
+  >
+    {children}
+  </motion.button>
+);
+
+export default function MilaMarketplaceV2() {
+  const [view, setView] = useState<'home' | 'details' | 'sell' | 'chat'>('home');
   const [products, setProducts] = useState<any[]>([]);
-  const [user, setUser] = useState<any>(null);
+  const [selected, setSelected] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('الكل');
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
-    supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
     fetchProducts();
   }, []);
 
@@ -29,62 +56,106 @@ export default function MilaStore() {
     setLoading(false);
   };
 
-  const handleSaveProduct = async (e: any) => {
-    e.preventDefault();
-    if (!user) return alert("Please Login First");
-    const formData = new FormData(e.target);
-    const file = formData.get('image') as File;
-    const fileName = `${Date.now()}-${file.name}`;
-    const { data: imgData } = await supabase.storage.from('product-images').upload(fileName, file);
-    const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
-    await supabase.from('products').insert([{
-      name: formData.get('name'), price: formData.get('price'), whatsapp: formData.get('whatsapp'),
-      category: formData.get('category'), image_url: urlData.publicUrl, user_id: user.id
-    }]);
-    setIsAddModalOpen(false); fetchProducts();
-  };
+  const filtered = useMemo(() => products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())), [products, search]);
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(p => (activeCategory === 'الكل' || p.category === activeCategory) && p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [products, activeCategory, searchQuery]);
-
-  if (loading) return <div className="h-screen bg-black flex items-center justify-center text-amber-500 font-black italic text-5xl">MILA...</div>;
+  if (loading) return <div className="h-screen bg-black flex items-center justify-center text-amber-500 font-black italic text-4xl animate-pulse">MILA LOADING...</div>;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white selection:bg-amber-500" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <ProductDetails product={selectedProduct} onClose={() => setSelectedProduct(null)} lang={lang} />
-      <AddProductModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveProduct} lang={lang} />
+    <div className="min-h-screen bg-[#080808] text-white selection:bg-amber-500 selection:text-black">
+      
+      {/* Navbar الاحترافي */}
+      <nav className="fixed top-0 w-full z-[100] bg-black/90 backdrop-blur-2xl border-b border-white/5 p-6 flex justify-between items-center px-12">
+        <h1 onClick={() => setView('home')} className="text-3xl font-black italic tracking-tighter cursor-pointer text-amber-500">MILA<span className="text-white">.AMZ</span></h1>
+        
+        <div className="flex-1 max-w-xl mx-10 relative hidden md:block">
+          <input onChange={(e) => setSearch(e.target.value)} placeholder="Search everything..." className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl outline-none text-center focus:border-amber-500 transition-all font-bold" />
+        </div>
 
-      <nav className="p-8 sticky top-0 z-[200] backdrop-blur-3xl border-b border-white/5 flex justify-between items-center max-w-7xl mx-auto bg-black/60">
-        <h1 className="text-3xl font-black italic tracking-tighter">MILA <span className="text-amber-500">STORE</span></h1>
-        <div className="flex gap-6 items-center">
-          <ModernIcon icon="🌐" label={lang === 'ar' ? 'EN' : 'AR'} onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} />
-          <ModernIcon icon="🛍️" label="SELL +" onClick={() => user ? setIsAddModalOpen(true) : window.location.href='/auth'} />
-          <ModernIcon icon={user ? "✅" : "👤"} label={user ? user.email.split('@')[0] : 'LOGIN'} href={!user ? "/auth" : undefined} />
+        <div className="flex gap-4">
+          <MilaButton onClick={() => setView('sell')} primary>Sell Now +</MilaButton>
+          <div onClick={() => setView('chat')} className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center cursor-pointer hover:bg-amber-500 hover:text-black transition-all">💬</div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto p-6 md:p-12">
-        <SearchBar placeholder={lang === 'ar' ? 'ابحث عن أي شيء في ميلة...' : 'Search Mila...'} onChange={setSearchQuery} />
-        <CategoryBar active={activeCategory} onChange={setActiveCategory} lang={lang} />
+      <main className="pt-32 pb-20 px-8 max-w-[1800px] mx-auto">
+        <AnimatePresence mode="wait">
+          
+          {view === 'home' && (
+            <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+              {filtered.map((p) => (
+                <GlassCard key={p.id} onClick={() => { setSelected(p); setView('details'); }}>
+                  <div className="aspect-[4/5] overflow-hidden relative">
+                    <img src={p.image_url} className="w-full h-full object-cover" />
+                    <div className="absolute top-4 left-4 bg-amber-500 text-black text-[8px] font-black px-3 py-1 rounded-lg">PREMIUM</div>
+                  </div>
+                  <div className="p-8 text-center">
+                    <h3 className="text-[11px] font-black opacity-30 uppercase truncate mb-2">{p.name}</h3>
+                    <p className="text-3xl font-black tracking-tighter">{p.price} <small className="text-xs opacity-40">DZD</small></p>
+                  </div>
+                </GlassCard>
+              ))}
+            </motion.div>
+          )}
 
-        <main className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-14 mt-10">
-          <AnimatePresence>
-            {filteredProducts.map((p, i) => (
-              <motion.div layout initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} key={p.id} onClick={() => setSelectedProduct(p)} className="group bg-white/[0.02] rounded-[3rem] overflow-hidden border border-white/5 cursor-pointer shadow-2xl hover:border-amber-500/30 transition-all duration-500">
-                <div className="aspect-[4/5] overflow-hidden bg-neutral-900 relative">
-                   <img src={p.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" />
-                   <div className="absolute top-5 right-5 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-2xl text-amber-500 text-[10px] font-black uppercase">NEW</div>
+          {view === 'details' && selected && (
+            <motion.div key="details" initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="max-w-6xl mx-auto flex flex-col md:flex-row gap-16 py-10">
+              <div className="w-full md:w-1/2 rounded-[3rem] overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.2)] border border-amber-500/20">
+                <img src={selected.image_url} className="w-full h-full object-cover" />
+              </div>
+              <div className="w-full md:w-1/2 flex flex-col justify-center">
+                <h2 className="text-6xl font-black italic text-amber-500 mb-6 uppercase tracking-tighter">{selected.name}</h2>
+                <div className="bg-white/5 p-10 rounded-[3rem] border border-white/5 mb-8">
+                  <p className="text-sm opacity-40 uppercase font-black mb-2">Price in Mila Province</p>
+                  <p className="text-5xl font-black">{selected.price} DZD</p>
                 </div>
-                <div className="p-10 text-center relative bg-gradient-to-b from-transparent to-black/40">
-                  <h3 className="text-[12px] font-black opacity-30 uppercase truncate mb-2 group-hover:opacity-100 transition-opacity">{p.name}</h3>
-                  <p className="text-3xl font-black">{p.price} <span className="text-xs opacity-40 italic">DZD</span></p>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </main>
-      </div>
+                <a href={`https://wa.me/${selected.whatsapp}`} target="_blank" className="w-full bg-[#25D366] text-black p-8 rounded-[2.5rem] flex items-center justify-center gap-4 font-black uppercase text-sm hover:scale-105 transition-transform shadow-2xl">
+                   WhatsApp Contact
+                </a>
+                <button onClick={() => setView('home')} className="mt-8 opacity-20 hover:opacity-100 font-black uppercase text-[10px] tracking-[0.5em]">Back to Store</button>
+              </div>
+            </motion.div>
+          )}
+
+          {view === 'sell' && (
+             <motion.div key="sell" initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="max-w-2xl mx-auto bg-[#111] p-12 rounded-[4rem] border border-white/5 shadow-2xl">
+                <h2 className="text-4xl font-black italic text-amber-500 mb-10 text-center uppercase tracking-tighter">Publish Ad</h2>
+                <form className="space-y-6" onSubmit={async (e: any) => {
+                  e.preventDefault();
+                  setLoading(true);
+                  const fd = new FormData(e.target);
+                  const file = fd.get('img') as File;
+                  const fName = `${Date.now()}-${file.name}`;
+                  await supabase.storage.from('product-images').upload(fName, file);
+                  const { data: url } = supabase.storage.from('product-images').getPublicUrl(fName);
+                  await supabase.from('products').insert([{ name: fd.get('name'), price: fd.get('price'), whatsapp: fd.get('whatsapp'), category: 'Global', image_url: url.publicUrl }]);
+                  setView('home'); fetchProducts();
+                }}>
+                  <input name="name" placeholder="Item Name" className="w-full p-6 rounded-3xl bg-black border border-white/10 outline-none font-bold focus:border-amber-500" required />
+                  <input name="price" placeholder="Price" className="w-full p-6 rounded-3xl bg-black border border-white/10 outline-none font-bold" required />
+                  <input name="whatsapp" placeholder="WhatsApp Number" className="w-full p-6 rounded-3xl bg-black border border-white/10 outline-none font-bold" required />
+                  <input type="file" name="img" className="w-full p-6 bg-amber-500/10 rounded-3xl border border-amber-500/20 text-xs font-black" required />
+                  <MilaButton primary className="w-full !py-8 text-sm">Post Advertisement</MilaButton>
+                  <button type="button" onClick={() => setView('home')} className="w-full text-[10px] font-black opacity-20 uppercase mt-4">Cancel</button>
+                </form>
+             </motion.div>
+          )}
+
+          {view === 'chat' && (
+            <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[60vh] flex flex-col items-center justify-center text-center">
+               <div className="text-8xl mb-6">💬</div>
+               <h2 className="text-4xl font-black italic mb-4">LIVE CHAT</h2>
+               <p className="text-white/30 max-w-sm font-bold italic">Chat system is connecting to Mila nodes... This feature will allow direct bargaining between users.</p>
+               <MilaButton onClick={() => setView('home')} className="mt-10">Back to Market</MilaButton>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+      </main>
+
+      <footer className="p-20 text-center border-t border-white/5 opacity-20">
+        <p className="font-black italic text-4xl mb-4">MILA GLOBAL MARKET</p>
+        <p className="text-[9px] font-black uppercase tracking-[1em]">Wad Kniss & Amazon Hybrid 2026</p>
+      </footer>
     </div>
   );
 }
