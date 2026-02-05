@@ -1,37 +1,51 @@
 "use client";
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 export default function SellerDashboard() {
+  const [user, setUser] = useState<{ id: string } | null>(null);
+  const [products, setProducts] = useState<Array<{ id: string; name: string; price: number }>>([]);
+  useEffect(() => {
+    supabase.auth.getSession().then(r => setUser(r.data.session?.user ?? null));
+  }, []);
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("products").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(({ data }) => setProducts(data || []));
+  }, [user]);
+  const total = products.length;
+  const favorites = 0;
   return (
     <main className="min-h-screen bg-[#050505] text-white p-8" dir="rtl">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-black mb-8 text-amber-500 underline decoration-white/10">منتجاتي المعروضة</h1>
-        
-        {/* قائمة منتجات البائع فقط */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="bg-neutral-900/80 backdrop-blur-xl border border-white/10 p-6 rounded-3xl">
+            <p className="text-white/50 text-xs">عدد المنتجات</p>
+            <p className="text-3xl font-black">{total}</p>
+          </div>
+          <div className="bg-neutral-900/80 backdrop-blur-xl border border-white/10 p-6 rounded-3xl">
+            <p className="text-white/50 text-xs">الإعجابات</p>
+            <p className="text-3xl font-black">{favorites}</p>
+          </div>
+        </div>
         <div className="space-y-4">
-          <div className="bg-neutral-900 p-6 rounded-3xl border border-white/5 flex justify-between items-center">
-            <div className="flex gap-4 items-center">
-              <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center text-2xl">📱</div>
-              <div>
-                <h3 className="font-bold text-lg">هاتف ذكي للبيع</h3>
-                <p className="text-gray-500 text-sm">السعر: 45000 دج</p>
+          {products.map((p) => (
+            <div key={p.id} className="bg-neutral-900/80 backdrop-blur-xl p-6 rounded-3xl border border-white/10 flex justify-between items-center">
+              <div className="flex gap-4 items-center">
+                <div className="w-16 h-16 bg-white/10 rounded-2xl" />
+                <div>
+                  <h3 className="font-bold text-lg">{p.name}</h3>
+                  <p className="text-gray-500 text-sm">{p.price} دج</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button className="bg-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold border border-white/10">تعديل</button>
+                <button className="bg-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold border border-white/10">حذف</button>
               </div>
             </div>
-            <div className="flex gap-2">
-              <button className="bg-blue-600/20 text-blue-400 px-4 py-2 rounded-xl text-sm font-bold">تعديل</button>
-              <button className="bg-red-600/20 text-red-400 px-4 py-2 rounded-xl text-sm font-bold">حذف</button>
-            </div>
-          </div>
-          {/* يمكن تكرار المنتجات هنا */}
+          ))}
         </div>
-
-        <motion.button 
-          whileHover={{ scale: 1.02 }}
-          className="w-full mt-8 py-4 border-2 border-dashed border-amber-500/30 rounded-3xl text-amber-500 font-bold"
-        >
-          + أضف منتجاً جديداً للمتجر
-        </motion.button>
       </div>
     </main>
   );
