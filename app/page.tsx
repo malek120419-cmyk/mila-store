@@ -1,32 +1,22 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { ModernIcon, MilaAlert, AuthModal } from './MilaEngine';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+
+// استيراد المكونات من الملفات الجديدة (تأكد من عدم وجود مسافات في أسماء الملفات)
+import { ModernIcon, ProductDetails, MilaAlert } from './MilaEngine';
+import { SearchBar, CategoryBar } from './MilaLogic';
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-const TRANSLATIONS = {
-  ar: { sell: "بيع +", theme: "الثيم", lang: "EN", login: "حسابي", search: "بحث في ميلة...", price: "دج", msg: "سجل دخولك أولاً" },
-  en: { sell: "SELL +", theme: "THEME", lang: "AR", login: "ACCOUNT", search: "Search Mila...", price: "DZD", msg: "Please login first" }
-};
-
 export default function MilaStore() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('الكل');
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-
-  // Auth States
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showAlert, setShowAlert] = useState(false);
-
-  const t = TRANSLATIONS[lang];
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
@@ -40,81 +30,68 @@ export default function MilaStore() {
     setLoading(false);
   };
 
-  const handleAuth = async () => {
-    const { error } = isSignUp ? await supabase.auth.signUp({ email, password }) : await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message); else setShowAuthModal(false);
-  };
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => 
+      (activeCategory === 'الكل' || p.category === activeCategory) && 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [products, activeCategory, searchQuery]);
 
-  const openSellForm = () => {
-    if (!user) {
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
-      setShowAuthModal(true);
-    } else {
-      alert("استمارة البيع جاهزة!"); // هنا تفتح الـ Modal الخاصة بالبيع
-    }
-  };
-
-  if (loading) return <div className="h-screen flex items-center justify-center bg-black text-amber-500 font-black italic text-2xl">MILA STORE...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-black text-amber-500 font-black italic text-2xl tracking-tighter">MILA STORE...</div>;
 
   return (
-    <div className={`min-h-screen transition-all ${isDarkMode ? 'bg-[#050505] text-white' : 'bg-gray-50 text-black'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-amber-500 selection:text-black" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       
-      <MilaAlert msg={t.msg} isVisible={showAlert} />
-      
-      <AuthModal 
-        isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} 
-        isSignUp={isSignUp} setIsSignUp={setIsSignUp}
-        setEmail={setEmail} setPassword={setPassword}
-        onAuth={handleAuth} lang={lang}
-      />
+      {/* نوافذ منبثقة تفاعلية */}
+      <ProductDetails product={selectedProduct} onClose={() => setSelectedProduct(null)} lang={lang} />
+      <MilaAlert msg={lang === 'ar' ? "يرجى تسجيل الدخول" : "Please Login"} isVisible={false} />
 
-      {/* Navbar مع ترجمة حقيقية */}
-      <nav className="p-6 sticky top-0 z-[200] backdrop-blur-xl border-b border-white/5 flex justify-between items-center max-w-7xl mx-auto shadow-2xl">
-        <h1 className="text-xl font-black italic tracking-tighter">MILA <span className="text-amber-500">STORE</span></h1>
+      {/* Navbar الاحترافي */}
+      <nav className="p-5 sticky top-0 z-[200] backdrop-blur-3xl border-b border-white/5 flex justify-between items-center max-w-7xl mx-auto bg-black/60 shadow-2xl">
+        <motion.h1 initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xl font-black italic tracking-tighter cursor-default">
+          MILA <span className="text-amber-500">STORE</span>
+        </motion.h1>
+        
         <div className="flex gap-4 items-center">
-          <ModernIcon icon={isDarkMode ? '🌞' : '🌚'} label={t.theme} onClick={() => setIsDarkMode(!isDarkMode)} />
-          <ModernIcon icon="🌐" label={t.lang} onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} />
-          <ModernIcon icon="🛍️" label={t.sell} onClick={openSellForm} />
-          <ModernIcon icon={user ? "✅" : "👤"} label={user ? user.email.split('@')[0] : t.login} onClick={() => !user && setShowAuthModal(true)} />
+          <ModernIcon icon="🌐" label={lang === 'ar' ? 'English' : 'العربية'} onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} />
+          <ModernIcon icon="🛍️" label={lang === 'ar' ? 'بيع +' : 'SELL +'} onClick={() => alert('قريباً')} />
+          <ModernIcon icon={user ? "✅" : "👤"} label={user ? user.email.split('@')[0] : (lang === 'ar' ? 'دخول' : 'LOGIN')} />
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-        {products.map(p => (
-          <motion.div 
-            whileHover={{ y: -5 }}
-            key={p.id} onClick={() => setSelectedProduct(p)} 
-            className="bg-neutral-900/40 rounded-[2rem] overflow-hidden border border-white/5 group shadow-xl cursor-pointer"
-          >
-             <div className="aspect-square overflow-hidden bg-black">
-                <img src={p.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" />
-             </div>
-             <div className="p-5 text-center">
-                <p className="text-[10px] font-black opacity-40 uppercase truncate">{p.name}</p>
-                <p className="text-amber-500 font-black text-sm mt-1">{p.price} {t.price}</p>
-             </div>
-          </motion.div>
-        ))}
-      </main>
+      <div className="max-w-7xl mx-auto p-4 md:p-6 mt-4">
+        {/* نظام البحث المطور */}
+        <SearchBar placeholder={lang === 'ar' ? 'ابحث عن منتج في ميلة...' : 'Search for anything...'} onChange={setSearchQuery} />
+        
+        {/* نظام الفئات الذكي */}
+        <CategoryBar active={activeCategory} onChange={setActiveCategory} lang={lang} />
 
-      {/* نافذة تفاصيل المنتج المفقودة */}
-      <AnimatePresence>
-        {selectedProduct && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-3xl p-6 flex items-center justify-center">
-            <div className="max-w-2xl w-full bg-[#0a0a0a] rounded-[3rem] p-8 border border-white/10 relative">
-              <button onClick={() => setSelectedProduct(null)} className="absolute top-6 right-6 text-2xl opacity-20 hover:opacity-100">✕</button>
-              <img src={selectedProduct.image_url} className="w-full h-64 object-cover rounded-2xl mb-6 shadow-2xl" />
-              <h2 className="text-2xl font-black text-amber-500 uppercase">{selectedProduct.name}</h2>
-              <p className="mt-4 opacity-60 text-sm leading-relaxed">{selectedProduct.description || "No description available."}</p>
-              <div className="mt-8 flex justify-between items-center">
-                <span className="text-2xl font-black">{selectedProduct.price} {t.price}</span>
-                <a href={`https://wa.me/${selectedProduct.whatsapp}`} className="bg-green-500 text-black px-8 py-3 rounded-full font-black text-xs uppercase shadow-lg">WhatsApp</a>
+        {/* شبكة المنتجات (محاكي الجوال 2-cols) */}
+        <main className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 mt-4">
+          {filteredProducts.map(p => (
+            <motion.div 
+              whileHover={{ y: -8 }} 
+              key={p.id} 
+              onClick={() => setSelectedProduct(p)}
+              className="bg-neutral-900/40 rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl cursor-pointer group transition-all"
+            >
+              <div className="aspect-square bg-black overflow-hidden relative">
+                <img src={p.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} />
+                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-amber-500 text-[9px] font-black uppercase">Mila</div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <div className="p-5 text-center bg-gradient-to-b from-transparent to-black/20">
+                <h3 className="text-[10px] font-black opacity-30 uppercase truncate tracking-tighter">{p.name}</h3>
+                <p className="text-amber-500 font-black text-sm mt-1">{p.price} <span className="text-[8px] opacity-60">DZD</span></p>
+              </div>
+            </motion.div>
+          ))}
+        </main>
+      </div>
+
+      {/* تذييل بسيط للجوال */}
+      <footer className="p-10 text-center opacity-10 text-[9px] font-black tracking-[0.5em] uppercase">
+        Designed for Mila City
+      </footer>
     </div>
   );
 }
