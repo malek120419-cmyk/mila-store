@@ -48,8 +48,9 @@ type ProductDetailsProps = {
   userRating: number;
   setUserRating: (rating: number) => void;
   t: { price: string; wa: string; cash: string; toastCopied: string; toastShared: string; copyLabel: string; shareLabel: string; rateLabel: string };
+  dark?: boolean;
 };
-export const ProductDetails = ({ product, onClose, userRating, setUserRating, t }: ProductDetailsProps) => {
+export const ProductDetails = ({ product, onClose, userRating, setUserRating, t, dark = true }: ProductDetailsProps) => {
   const [idx, setIdx] = useState(0);
   const [inlineToast, setInlineToast] = useState<{ id: number; text: string } | null>(null);
   useEffect(() => {
@@ -68,7 +69,7 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t 
             <X />
           </motion.button>
           <div className="max-w-5xl mx-auto mt-20 flex flex-col items-center pb-20">
-            <div className="w-full max-w-xl aspect-square rounded-[3.5rem] overflow-hidden shadow-2xl border border-white/5 relative">
+            <div className={`w-full max-w-xl aspect-square rounded-[3.5rem] overflow-hidden shadow-2xl relative ${dark ? 'border border-white/5' : 'border-4 border-amber-300'}`}>
               {imgs.length > 0 ? (
                 <>
                   <Image src={imgs[idx]} alt={product.name} fill sizes="(min-width: 768px) 40vw, 80vw" className="object-cover" />
@@ -104,12 +105,12 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t 
                 <p className="text-[8px] font-black opacity-30 uppercase tracking-[0.3em]">{t.rateLabel}</p>
               </div>
 
-              <div className="bg-white/5 p-8 rounded-[3rem] border border-white/5">
+              <div className={`${dark ? 'bg-white/5 border border-white/5' : 'bg-white text-black border-4 border-amber-300'} p-8 rounded-[3rem]`}>
                 <p className="text-amber-500 text-3xl font-black mb-4">{product.price} {t.price}</p>
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">{t.cash}</p>
               <div className="flex items-center justify-center gap-2 mb-4">
-                {product.category && <span className="px-3 py-1 text-[10px] rounded-full bg-white/10">{product.category}</span>}
-                {product.location && <span className="px-3 py-1 text-[10px] rounded-full bg-white/10">{product.location}</span>}
+                {product.category && <span className={`px-3 py-1 text-[10px] rounded-full ${dark ? 'bg-white/10' : 'bg-amber-50 border border-amber-200'}`}>{product.category}</span>}
+                {product.location && <span className={`px-3 py-1 text-[10px] rounded-full ${dark ? 'bg-white/10' : 'bg-amber-50 border border-amber-200'}`}>{product.location}</span>}
               </div>
                 <p className="opacity-60 text-lg leading-relaxed">{product.description || "تفاصيل أكثر عند التواصل مع البائع."}</p>
               </div>
@@ -120,7 +121,7 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t 
                   href={`https://wa.me/${product.whatsapp}`}
                   target="_blank"
                   aria-label="WhatsApp"
-                  className="inline-flex items-center gap-2 bg-gradient-to-br from-[#25D366] to-[#21c35b] text-black px-6 py-4 rounded-[2rem] font-black text-lg shadow-2xl"
+                  className="inline-flex items-center gap-2 bg-gradient-to-br from-[#25D366] to-[#21c35b] text-black px-6 py-4 rounded-[2rem] font-black text-lg shadow-2xl border-2 border-green-700"
                 >
                   <Phone size={18} />
                   <span>{t.wa}</span>
@@ -135,7 +136,7 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t 
                       setTimeout(() => setInlineToast(null), 1600);
                     });
                   }}
-                  className="inline-flex items-center gap-2 bg-white/10 text-white px-5 py-4 rounded-[2rem] font-bold text-sm border border-white/10 backdrop-blur"
+                  className="inline-flex items-center gap-2 bg-amber-500 text-black px-5 py-4 rounded-[2rem] font-bold text-sm border border-amber-600"
                 >
                   <Copy size={16} />
                   <span>{t.copyLabel}</span>
@@ -156,7 +157,7 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t 
                       setTimeout(() => setInlineToast(null), 1600);
                     }
                   }}
-                  className="inline-flex items-center gap-2 bg-white/10 text-white px-5 py-4 rounded-[2rem] font-bold text-sm border border-white/10 backdrop-blur"
+                  className="inline-flex items-center gap-2 bg-amber-500 text-black px-5 py-4 rounded-[2rem] font-bold text-sm border border-amber-600"
                 >
                   <Share2 size={16} />
                   <span>{t.shareLabel}</span>

@@ -29,6 +29,7 @@ const UI = {
     logout: "خروج",
     price: "دج",
     wa: "تواصل واتساب",
+    contactUs: "اتصل بنا",
     addTitle: "إضافة منتج",
     publish: "نشر",
     publishing: "جارٍ النشر...",
@@ -66,6 +67,7 @@ const UI = {
     logout: "Logout",
     price: "DZD",
     wa: "WhatsApp",
+    contactUs: "Contact Us",
     addTitle: "Add Product",
     publish: "Publish",
     publishing: "Publishing...",
@@ -103,6 +105,7 @@ const UI = {
     logout: "Déconnexion",
     price: "DZD",
     wa: "WhatsApp",
+    contactUs: "Contactez-nous",
     addTitle: "Ajouter un produit",
     publish: "Publier",
     publishing: "Publication...",
@@ -304,17 +307,23 @@ export default function MilaStore() {
     const fileList = files ? Array.from(files) : [];
     const uploads: string[] = [];
     setIsPublishing(true);
-    for (let i = 0; i < fileList.length; i++) {
-      const f = fileList[i];
-      const fileName = `${Date.now()}-${i}-${f.name}`;
-      const up = await supabase.storage.from("mila-market-assests").upload(fileName, f);
-      if (up.error) {
+    const processed = await Promise.all(fileList.map((f) => compressImage(f)));
+    const results = await Promise.all(processed.map((blob, i) => {
+      const ext = "jpg";
+      const fileName = `${Date.now()}-${i}.${ext}`;
+      return supabase.storage.from("mila-market-assests").upload(fileName, blob).then((up) => {
+        if (up.error) return null;
+        const { data } = supabase.storage.from("mila-market-assests").getPublicUrl(fileName);
+        return data.publicUrl;
+      });
+    }));
+    for (const url of results) {
+      if (!url) {
         setToasts(prev => [...prev, { id: Date.now(), text: t.toastUploadError, type: "error" }]);
         setIsPublishing(false);
         return;
       }
-      const { data } = supabase.storage.from("mila-market-assests").getPublicUrl(fileName);
-      uploads.push(data.publicUrl);
+      uploads.push(url);
     }
 
     const primaryImage = uploads[0];
@@ -359,6 +368,26 @@ export default function MilaStore() {
     return base;
   }, [products, category, search, location, sortBy]);
 
+  const tinyBlur = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0nMScgaGVpZ2h0PScxJyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnPjxyZWN0IHdpZHRoPScxJyBoZWlnaHQ9JzEnIGZpbGw9J2xpbmVhcmdyYWRpZW50KDEyMCwgMTIwLCAxMjApJy8+PC9zdmc+";
+  const compressImage = async (file: File, maxSide = 1920, quality = 0.8): Promise<Blob> => {
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+      const w = Math.max(1, Math.round(bmp.width * scale));
+      const h = Math.max(1, Math.round(bmp.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      ctx.drawImage(bmp, 0, 0, w, h);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+      return blob || file;
+    } catch {
+      return file;
+    }
+  };
+
   if (loading)
     return (
       <div className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={lang === "ar" ? "rtl" : "ltr"}>
@@ -379,7 +408,7 @@ export default function MilaStore() {
     );
 
   return (
-    <div className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={lang === "ar" ? "rtl" : "ltr"}>
+    <div suppressHydrationWarning className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={typeof window !== "undefined" ? (lang === "ar" ? "rtl" : "ltr") : "ltr"}>
 
       <nav className="p-6 flex justify-between items-center sticky top-0 bg-black/80 backdrop-blur z-50">
         <h1 className="font-black italic text-xl">
@@ -389,7 +418,7 @@ export default function MilaStore() {
         <div className="flex gap-4 items-center">
           <button
             onClick={() => setLang(lang === "ar" ? "en" : lang === "en" ? "fr" : "ar")}
-            className="text-xs bg-amber-500 text-black px-3 py-1 rounded"
+            className="text-xs bg-amber-500 text-black px-3 py-1 rounded border-2 border-amber-600"
           >
             {lang === "ar" ? "EN" : lang === "en" ? "FR" : "AR"}
           </button>
@@ -402,9 +431,24 @@ export default function MilaStore() {
             <ModernIcon icon={<LogIn />} label={t.login} onClick={() => setShowAuth(true)} />
           )}
 
+          <motion.button
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.94 }}
+            onClick={() => {
+              const gmailUrl = "https://mail.google.com/mail/?view=cm&fs=1&to=milastore@gmail.com";
+              const win = window.open(gmailUrl, "_blank");
+              if (!win) {
+                window.location.href = "mailto:milastore@gmail.com";
+              }
+            }}
+            className="bg-white/10 text-white px-3 py-1 rounded text-xs font-bold border-2 border-amber-600"
+          >
+            {t.contactUs}
+          </motion.button>
+
           <button
             onClick={() => (user ? setShowAdd(true) : setShowAuth(true))}
-            className="bg-amber-500 text-black px-4 py-2 rounded-full font-black"
+            className="bg-amber-500 text-black px-4 py-2 rounded-full font-black border-2 border-amber-600"
           >
             {t.sell}
           </button>
@@ -413,24 +457,26 @@ export default function MilaStore() {
 
       {/* SEARCH */}
       <div className="max-w-6xl mx-auto p-6">
-        <input
-          placeholder={t.search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full p-6 rounded-full bg-white/10 text-center outline-none"
-        />
+        <div className="flex justify-center">
+          <input
+            placeholder={t.search}
+            onChange={e => setSearch(e.target.value)}
+            className={`w-full sm:w-4/5 md:w-1/2 lg:w-2/5 p-2 md:p-3 rounded-full ${dark ? 'bg-white/10 text-white' : 'bg-white text-black'} text-center outline-none border-2 border-amber-500 ring-1 ring-amber-300 shadow-sm focus:ring-2 focus:ring-amber-400 text-sm md:text-base`}
+          />
+        </div>
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <select onChange={e => setLocation(e.target.value)} className="p-3 rounded-2xl bg-white/10">
+          <select onChange={e => setLocation(e.target.value)} className={`p-3 rounded-2xl ${dark ? 'bg-white/10 text-white' : 'bg-white text-black'} border-2 border-amber-500 ring-1 ring-amber-300 shadow-sm focus:ring-2 focus:ring-amber-400`}>
             <option value="">{lang === "ar" ? "كل المناطق" : lang === "fr" ? "Toutes les communes" : "All Locations"}</option>
             {(MUNICIPALITIES[lang] as string[]).map((m, i) => (
               <option key={i} value={MUNICIPALITIES.ar[i]}>{m}</option>
             ))}
           </select>
-          <select onChange={e => setSortBy(e.target.value as "newest" | "price_asc" | "price_desc")} className="p-3 rounded-2xl bg-white/10">
+          <select onChange={e => setSortBy(e.target.value as "newest" | "price_asc" | "price_desc")} className={`p-3 rounded-2xl ${dark ? 'bg-white/10 text-white' : 'bg-white text-black'} border-2 border-amber-500 ring-1 ring-amber-300 shadow-sm focus:ring-2 focus:ring-amber-400`}>
             <option value="newest">{lang === "ar" ? "الأحدث" : "Newest"}</option>
             <option value="price_asc">{lang === "ar" ? "السعر: من الأقل" : "Price: Low to High"}</option>
             <option value="price_desc">{lang === "ar" ? "السعر: من الأعلى" : "Price: High to Low"}</option>
           </select>
-          <button onClick={() => { setSearch(""); setCategory("الكل"); setLocation(""); setSortBy("newest"); }} className="p-3 rounded-2xl bg-amber-500 text-black font-black">
+          <button onClick={() => { setSearch(""); setCategory("الكل"); setLocation(""); setSortBy("newest"); }} className="p-3 rounded-2xl bg-amber-500 text-black font-black border-4 border-amber-600 ring-1 ring-amber-300 shadow-[0_8px_30px_rgba(255,191,71,0.25)]">
             {t.reset}
           </button>
         </div>
@@ -456,20 +502,29 @@ export default function MilaStore() {
           ))}
         </div>
 
-        <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {filtered.map(p => (
-            <motion.div key={p.id} variants={itemVariants} whileHover={{ y: -4, scale: 1.01 }} className="bg-white/5 rounded-3xl overflow-hidden relative">
+        <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-3 gap-6">
+          {filtered.map((p, i) => (
+            <motion.div key={p.id} variants={itemVariants} whileHover={{ y: -4, scale: 1.01 }} className={`${dark ? 'bg-white/5' : 'bg-white border-4 border-amber-300'} rounded-3xl overflow-hidden relative`}>
               <div className="absolute left-3 top-3 bg-amber-500 text-black text-[10px] font-black px-3 py-1 rounded-full"> {t.cash} </div>
               <button onClick={() => setSelectedProduct(p)} className="w-full">
                 <div className="aspect-square relative">
                   {p.image_url && p.image_url.trim().length > 0 ? (
-                    <Image src={p.image_url} alt={p.name} fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
+                    <Image
+                      src={p.image_url}
+                      alt={p.name}
+                      fill
+                      sizes="33vw"
+                      className="object-cover"
+                      priority={i < 3}
+                      placeholder="blur"
+                      blurDataURL={tinyBlur}
+                    />
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-white/5" />
                   )}
                 </div>
                 <div className="p-4 text-center">
-                  <h3 className="font-black text-xs truncate">{p.name}</h3>
+                  <h3 className="font-black text-base truncate">{p.name}</h3>
                   <p className="text-amber-500 font-black mt-2">
                     {p.price} {t.price}
                   </p>
@@ -485,7 +540,7 @@ export default function MilaStore() {
               <a
                 href={`https://wa.me/${p.whatsapp}`}
                 target="_blank"
-                className="block mx-4 mb-6 bg-green-500 text-black py-1.5 rounded-full font-black text-sm text-center"
+                className="block mx-4 mb-6 bg-green-500 text-black py-1.5 rounded-full font-black text-sm text-center border-2 border-green-700"
               >
                 {t.wa}
               </a>
@@ -500,7 +555,7 @@ export default function MilaStore() {
                       setToasts(prev => [...prev, { id: Date.now(), text: t.toastCopied, type: "success" }]);
                     });
                   }}
-                  className="p-2 rounded-2xl bg-white/10 text-white border border-white/20 backdrop-blur"
+                  className="p-2 rounded-2xl bg-amber-500 text-black border border-amber-600"
                 >
                   <Copy size={14} />
                 </motion.button>
@@ -519,7 +574,7 @@ export default function MilaStore() {
                       setToasts(prev => [...prev, { id: Date.now(), text: t.toastCopied, type: "success" }]);
                     }
                   }}
-                  className="p-2 rounded-2xl bg-white/10 text-white border border-white/20 backdrop-blur"
+                  className="p-2 rounded-2xl bg-amber-500 text-black border border-amber-600"
                 >
                   <Share2 size={14} />
                 </motion.button>
@@ -530,7 +585,7 @@ export default function MilaStore() {
                       whileTap={{ scale: 0.95 }}
                       aria-label={lang === "ar" ? "تعديل" : "Edit"}
                       onClick={() => { setShowAdd(true); setIsEditing(true); setForm({ name: p.name, description: p.description || "", price: String(p.price), category: p.category, location: p.location, whatsapp: p.whatsapp }); setSelectedProduct(p); }}
-                      className="p-2 rounded-2xl bg-white/10 text-white border border-white/20 backdrop-blur"
+                      className="p-2 rounded-2xl bg-amber-500 text-black border border-amber-600"
                     >
                       <Edit2 size={14} />
                     </motion.button>
@@ -539,7 +594,7 @@ export default function MilaStore() {
                       whileTap={{ scale: 0.95 }}
                       aria-label={lang === "ar" ? "حذف" : "Delete"}
                       onClick={async () => { await supabase.from("products").delete().eq("id", p.id); await loadProducts(); setToasts(prev => [...prev, { id: Date.now(), text: t.toastDeleted, type: "success" }]); }}
-                      className="p-2 rounded-2xl bg-white/10 text-white border border-white/20 backdrop-blur"
+                      className="p-2 rounded-2xl bg-amber-500 text-black border border-amber-600"
                     >
                       <Trash2 size={14} />
                     </motion.button>
@@ -660,7 +715,7 @@ export default function MilaStore() {
           </motion.div>
         ))}
       </AnimatePresence>
-      <ProductDetails product={selectedProduct} onClose={() => setSelectedProduct(null)} userRating={userRating} setUserRating={setUserRating} t={{ price: t.price, wa: t.wa, cash: t.cash, toastCopied: t.toastCopied, toastShared: t.toastShared, copyLabel: t.copyLabel, shareLabel: t.shareLabel, rateLabel: t.rateLabel }} />
+      <ProductDetails product={selectedProduct} onClose={() => setSelectedProduct(null)} userRating={userRating} setUserRating={setUserRating} t={{ price: t.price, wa: t.wa, cash: t.cash, toastCopied: t.toastCopied, toastShared: t.toastShared, copyLabel: t.copyLabel, shareLabel: t.shareLabel, rateLabel: t.rateLabel }} dark={dark} />
 
     </div>
   );
