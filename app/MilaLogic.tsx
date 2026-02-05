@@ -2,24 +2,35 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
+export const MUNICIPALITIES = {
+  ar: ["ميلة المركز", "شلغوم العيد", "فرجيوي", "تاجنانت", "التلاغمة", "وادي العثمانية", "زغاية", "القرارم قوقة", "سيدي مروان", "مشديرة"],
+  en: ["Mila Center", "Chelghoum Laid", "Ferdjioua", "Tadjenanet", "Teleghma", "Oued Athmania", "Zeghaia", "Grarem Gouga", "Sidi Merouane", "Mechira"]
+};
+
 export const CATEGORIES = {
   ar: ["الكل", "إلكترونيات", "سيارات", "عقارات", "هواتف", "أثاث", "ملابس"],
   en: ["All", "Electronics", "Cars", "Real Estate", "Phones", "Furniture", "Clothing"]
 };
 
-export const SearchBar = ({ placeholder, onChange }: any) => (
-  <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="relative w-full max-w-4xl mx-auto mb-10 px-4 group">
-    <input type="text" placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full p-8 rounded-[3rem] bg-white/[0.03] border border-white/10 outline-none text-center font-black text-white focus:border-amber-500/50 transition-all shadow-2xl text-xl" />
-    <div className="absolute left-14 top-1/2 -translate-y-1/2 opacity-20 group-focus-within:opacity-100 transition-opacity text-3xl">🔍</div>
-  </motion.div>
-);
+export const UI_TEXT = {
+  ar: {
+    search: "بحث في ميلة...", sell: "بيع +", login: "دخول", price: "دج", 
+    wa: "تواصل واتساب", addTitle: "إضافة منتج جديد", publish: "نشر الآن",
+    authTitle: "ميلة ستور", signUp: "إنشاء حساب", signIn: "تسجيل الدخول"
+  },
+  en: {
+    search: "Search...", sell: "Sell +", login: "Login", price: "DZD", 
+    wa: "WhatsApp", addTitle: "Add Product", publish: "Publish",
+    authTitle: "Mila Store", signUp: "Sign Up", signIn: "Sign In"
+  }
+};
 
-export const CategoryBar = ({ active, onChange, lang }: any) => (
-  <div className="flex gap-3 overflow-x-auto pb-8 no-scrollbar px-4 justify-start md:justify-center">
-    {CATEGORIES[lang as 'ar' | 'en'].map((cat, i) => (
-      <button key={i} onClick={() => onChange(CATEGORIES.ar[i])} className={`px-10 py-4 rounded-full text-[10px] font-black border transition-all whitespace-nowrap uppercase tracking-widest ${active === CATEGORIES.ar[i] ? 'bg-amber-500 text-black border-amber-500 shadow-xl' : 'bg-white/5 border-white/10 text-white/40'}`}>
-        {cat}
-      </button>
-    ))}
-  </div>
+export const SearchBar = ({ lang, onChange, isDarkMode }: any) => (
+  <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+    <input 
+      type="text" placeholder={UI_TEXT[lang as 'ar' | 'en'].search} 
+      className={`w-full p-6 md:p-8 rounded-[2.5rem] border-none outline-none text-center font-bold shadow-2xl transition-all ${isDarkMode ? 'bg-white/5 focus:bg-white/10 text-white' : 'bg-white text-black'}`}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  </motion.div>
 );
