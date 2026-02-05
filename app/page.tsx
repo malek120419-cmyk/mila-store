@@ -3,8 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// استيراد المكونات (تأكد من مطابقة أسماء الملفات تماماً وبدون مسافات)
-import { ModernIcon, ProductDetails, MilaAlert } from './MilaEngine';
+import { ModernIcon, ProductDetails, MilaAlert, AddProductModal } from './MilaEngine';
 import { SearchBar, CategoryBar } from './MilaLogic';
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -17,7 +16,8 @@ export default function MilaStore() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('الكل');
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [showAlert, setShowAlert] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [alertMsg, setAlertMsg] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
@@ -31,87 +31,75 @@ export default function MilaStore() {
     setLoading(false);
   };
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(p => 
-      (activeCategory === 'الكل' || p.category === activeCategory) && 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [products, activeCategory, searchQuery]);
+  const handleSaveProduct = async (e: any) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const file = formData.get('image') as File;
+    const fileName = `${Date.now()}-${file.name}`;
 
-  const handleSellClick = () => {
-    if (!user) {
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
-    } else {
-      alert("استمارة البيع قيد التجهيز لهذه النسخة");
-    }
+    try {
+      // الرفع لمجلد product-images الذي ضبطت الـ Policies الخاصة به
+      const { data: imgData } = await supabase.storage.from('product-images').upload(fileName, file);
+      if (!imgData) throw new Error("Upload Failed");
+
+      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
+
+      const { error } = await supabase.from('products').insert([{
+        name: formData.get('name'),
+        price: formData.get('price'),
+        whatsapp: formData.get('whatsapp'),
+        category: formData.get('category'),
+        image_url: urlData.publicUrl
+      }]);
+
+      if (!error) {
+        setIsAddModalOpen(false);
+        fetchProducts();
+        setAlertMsg(lang === 'ar' ? "تم النشر!" : "Published!");
+        setTimeout(() => setAlertMsg(''), 3000);
+      }
+    } catch (err) { alert("Error saving product. Check your Policies."); }
   };
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-black">
-      <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 2 }} className="text-amber-500 font-black italic text-5xl tracking-[0.2em]">MILA</motion.div>
-    </div>
-  );
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => (activeCategory === 'الكل' || p.category === activeCategory) && p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [products, activeCategory, searchQuery]);
+
+  if (loading) return <div className="h-screen flex items-center justify-center bg-black text-amber-500 font-black italic text-4xl animate-pulse">MILA...</div>;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans overflow-x-hidden selection:bg-amber-500 selection:text-black" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      
-      {/* المكونات العلوية المستدعاة */}
+    <div className="min-h-screen bg-[#050505] text-white selection:bg-amber-500" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <ProductDetails product={selectedProduct} onClose={() => setSelectedProduct(null)} lang={lang} />
-      <MilaAlert msg={lang === 'ar' ? "يرجى تسجيل الدخول أولاً" : "Please login first"} isVisible={showAlert} />
+      <AddProductModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveProduct} lang={lang} />
+      <MilaAlert msg={alertMsg} isVisible={!!alertMsg} />
 
-      {/* Navbar الاحترافي */}
-      <nav className="p-6 sticky top-0 z-[200] backdrop-blur-3xl border-b border-white/5 flex justify-between items-center max-w-7xl mx-auto bg-black/70">
-        <motion.div initial={{ x: -20 }} animate={{ x: 0 }} className="flex flex-col">
-          <h1 className="text-2xl font-black italic tracking-tighter cursor-pointer">MILA <span className="text-amber-500">STORE</span></h1>
-          <span className="text-[7px] font-black opacity-30 tracking-[0.5em] uppercase">Mila City Market</span>
-        </motion.div>
-        
-        <div className="flex gap-5 md:gap-8 items-center">
-          <ModernIcon icon="🌐" label={lang === 'ar' ? 'English' : 'العربية'} onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} />
-          <ModernIcon icon="🛍️" label={lang === 'ar' ? 'بيع +' : 'SELL +'} onClick={handleSellClick} />
-          <ModernIcon active={user} icon={user ? "✅" : "👤"} label={user ? user.email.split('@')[0] : (lang === 'ar' ? 'دخول' : 'LOGIN')} />
+      <nav className="p-6 sticky top-0 z-[200] backdrop-blur-3xl border-b border-white/5 flex justify-between items-center max-w-7xl mx-auto bg-black/50">
+        <h1 className="text-2xl font-black italic tracking-tighter cursor-pointer">MILA <span className="text-amber-500">STORE</span></h1>
+        <div className="flex gap-5 items-center">
+          <ModernIcon icon="🌐" label={lang === 'ar' ? 'EN' : 'AR'} onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} />
+          <ModernIcon icon="🛍️" label={lang === 'ar' ? 'بيع +' : 'SELL +'} onClick={() => setIsAddModalOpen(true)} />
+          <ModernIcon active={user} icon={user ? "✅" : "👤"} label={user ? user.email.split('@')[0] : 'LOGIN'} />
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto p-4 md:p-8">
-        {/* المكونات المنطقية */}
-        <SearchBar placeholder={lang === 'ar' ? 'ماذا تريد أن تشتري اليوم؟' : 'What are you looking for?'} onChange={setSearchQuery} />
+      <div className="max-w-7xl mx-auto p-4 md:p-8 mt-4">
+        <SearchBar placeholder={lang === 'ar' ? 'ابحث في ميلة...' : 'Search Mila...'} onChange={setSearchQuery} />
         <CategoryBar active={activeCategory} onChange={setActiveCategory} lang={lang} />
 
-        {/* شبكة المنتجات بتصميم Pinterest الاحترافي */}
-        <main className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10 mt-8">
-          <AnimatePresence>
-            {filteredProducts.map((p, idx) => (
-              <motion.div 
-                layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} 
-                transition={{ delay: idx * 0.05 }}
-                key={p.id} onClick={() => setSelectedProduct(p)}
-                className="group bg-white/[0.02] rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl cursor-pointer hover:border-amber-500/30 transition-all duration-500"
-              >
-                <div className="aspect-[4/5] bg-black overflow-hidden relative">
-                  <motion.img 
-                    whileHover={{ scale: 1.1 }} transition={{ duration: 0.8 }}
-                    src={p.image_url} className="w-full h-full object-cover" alt={p.name} 
-                  />
-                  <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-xl px-3 py-1.5 rounded-2xl text-amber-500 text-[9px] font-black uppercase tracking-widest shadow-2xl">
-                    ⭐ 5.0
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-20 transition-opacity" />
+        <motion.main layout className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-12 mt-10">
+          <AnimatePresence mode="popLayout">
+            {filteredProducts.map((p, i) => (
+              <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ delay: i * 0.05 }} key={p.id} onClick={() => setSelectedProduct(p)} className="group bg-white/[0.02] rounded-[2.5rem] overflow-hidden border border-white/5 cursor-pointer shadow-2xl hover:border-amber-500/30 transition-all duration-500">
+                <div className="aspect-[4/5] overflow-hidden bg-neutral-900 relative">
+                   <img src={p.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                   <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-amber-500 text-[9px] font-black uppercase">NEW</div>
                 </div>
-                <div className="p-6 text-center">
-                  <h3 className="text-[10px] font-black opacity-30 uppercase truncate mb-2 tracking-widest group-hover:opacity-100 transition-opacity">{p.name}</h3>
-                  <p className="text-amber-500 font-black text-xl">{p.price} <span className="text-[10px] opacity-50 italic">DZD</span></p>
-                </div>
+                <div className="p-8 text-center"><h3 className="text-[11px] font-black opacity-30 uppercase truncate mb-2 group-hover:opacity-100 transition-opacity">{p.name}</h3><p className="text-2xl font-black">{p.price} <span className="text-xs opacity-40">DZD</span></p></div>
               </motion.div>
             ))}
           </AnimatePresence>
-        </main>
+        </motion.main>
       </div>
-
-      <footer className="mt-20 p-12 border-t border-white/5 text-center">
-        <p className="text-[9px] font-black opacity-20 uppercase tracking-[1em]">Created for Mila Community 2026</p>
-      </footer>
     </div>
   );
 }
