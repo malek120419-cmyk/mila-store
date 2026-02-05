@@ -578,6 +578,7 @@ export default function MilaStore() {
                       src={p.image_url}
                       alt={p.name}
                       fill
+                      unoptimized
                       sizes="50vw"
                       className="object-cover"
                       priority={i < 2}
@@ -623,9 +624,9 @@ export default function MilaStore() {
                       setToasts(prev => [...prev, { id: Date.now(), text: t.toastCopied, type: "success" }]);
                     });
                   }}
-                  className="p-3 sm:p-2 rounded-2xl bg-amber-500 text-black border border-amber-600"
+                  className="w-9 h-9 sm:w-10 sm:h-10 p-0 rounded-full bg-amber-500 text-black border border-amber-600 flex items-center justify-center"
                 >
-                  <Copy size={14} />
+                  <Copy size={12} />
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -642,9 +643,9 @@ export default function MilaStore() {
                       setToasts(prev => [...prev, { id: Date.now(), text: t.toastCopied, type: "success" }]);
                     }
                   }}
-                  className="p-3 sm:p-2 rounded-2xl bg-amber-500 text-black border border-amber-600"
+                  className="w-9 h-9 sm:w-10 sm:h-10 p-0 rounded-full bg-amber-500 text-black border border-amber-600 flex items-center justify-center"
                 >
-                  <Share2 size={14} />
+                  <Share2 size={12} />
                 </motion.button>
                 {user && user.id === p.user_id && (
                   <>
@@ -653,18 +654,18 @@ export default function MilaStore() {
                       whileTap={{ scale: 0.95, borderWidth: 0 }}
                       aria-label={lang === "ar" ? "تعديل" : "Edit"}
                       onClick={() => { setShowAdd(true); setIsEditing(true); setForm({ name: p.name, description: p.description || "", price: String(p.price), category: p.category, location: p.location, whatsapp: p.whatsapp }); setSelectedProduct(p); }}
-                      className="p-3 sm:p-2 rounded-2xl bg-amber-500 text-black border border-amber-600"
+                      className="w-9 h-9 sm:w-10 sm:h-10 p-0 rounded-full bg-amber-500 text-black border border-amber-600 flex items-center justify-center"
                     >
-                      <Edit2 size={14} />
+                      <Edit2 size={12} />
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95, borderWidth: 0 }}
                       aria-label={lang === "ar" ? "حذف" : "Delete"}
                       onClick={async () => { await supabase.from("products").delete().eq("id", p.id); await loadProducts(); setToasts(prev => [...prev, { id: Date.now(), text: t.toastDeleted, type: "success" }]); }}
-                      className="p-3 sm:p-2 rounded-2xl bg-amber-500 text-black border border-amber-600"
+                      className="w-9 h-9 sm:w-10 sm:h-10 p-0 rounded-full bg-amber-500 text-black border border-amber-600 flex items-center justify-center"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={12} />
                     </motion.button>
                   </>
                 )}
@@ -681,7 +682,7 @@ export default function MilaStore() {
       {/* AUTH MODAL */}
       <AnimatePresence>
         {showAuth && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-3xl overflow-y-auto no-scrollbar z-[1000]">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)', paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 1rem)' }} className="fixed inset-0 bg-black/70 backdrop-blur-3xl overflow-y-auto no-scrollbar z-[1000]">
             <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowAuth(false)} className="fixed top-6 right-6 z-[1001] w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-2xl border border-white/20 bg-white/10 backdrop-blur-2xl">
               <X size={20} />
             </motion.button>
@@ -736,25 +737,25 @@ export default function MilaStore() {
       {/* ADD PRODUCT */}
       <AnimatePresence>
         {showAdd && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-2xl overflow-y-auto no-scrollbar">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)', paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 1rem)' }} className="fixed inset-0 bg-black/80 backdrop-blur-2xl overflow-y-auto no-scrollbar">
             <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowAdd(false)} className={`fixed top-4 right-4 z-[1000] w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl backdrop-blur-2xl ${dark ? 'text-white border border-white/20 bg-white/10' : 'text-black border border-black/20 bg-black/10'}`}>
               <X size={20} />
             </motion.button>
-            <motion.div initial={{ y: 24, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} className={`relative p-6 sm:p-8 rounded-3xl max-w-xl w-full mx-auto my-12 sm:my-24 shadow-2xl ${dark ? 'bg-neutral-900 text-white border border-white/10' : 'bg-white text-black border-2 border-amber-300'}`}>
+            <motion.div initial={{ y: 24, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} className={`relative p-6 sm:p-8 rounded-3xl w-[92%] max-w-md sm:max-w-xl mx-auto my-10 sm:my-24 shadow-2xl ${dark ? 'bg-neutral-900 text-white border border-white/10' : 'bg-white text-black border-2 border-amber-300'}`}>
               <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowAdd(false)} className={`absolute top-3 right-3 z-[1001] w-10 h-10 rounded-2xl flex items-center justify-center shadow-xl ${dark ? 'text-white border border-white/20 bg-white/10' : 'text-black border-2 border-amber-300 bg-amber-50'}`}>
                 <X size={18} />
               </motion.button>
-              <h2 className="text-xl font-black text-center mb-6 text-amber-500">
+              <h2 className="text-lg sm:text-xl font-black text-center mb-6 text-amber-500">
                 {t.addTitle}
               </h2>
 
               <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
                 <input type="file" multiple onChange={e => { const f = e.target.files; if (f && f.length > 30) { setToasts(prev => [...prev, { id: Date.now(), text: t.toastTooManyImages, type: "error" }]); } setFiles(f); }} className="w-full p-4 bg-white/10 rounded-2xl border-2 border-amber-500 ring-1 ring-amber-300" />
                 {files && (
-                  <div className="mt-3 grid grid-cols-3 gap-3">
+                  <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
                     {Array.from(files).slice(0, 30).map((f, i) => (
                       <div key={i} className="relative aspect-square rounded-2xl overflow-hidden bg-white/10 border border-white/10">
-                        <Image src={URL.createObjectURL(f)} alt="" fill sizes="(min-width:768px) 20vw, 33vw" className="object-cover" />
+                        <Image src={URL.createObjectURL(f)} alt="" fill unoptimized sizes="(min-width:768px) 20vw, 33vw" className="object-cover" />
                       </div>
                     ))}
                   </div>

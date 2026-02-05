@@ -68,7 +68,7 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
   return (
     <AnimatePresence>
       {product && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[600] bg-black/98 backdrop-blur-3xl p-4 overflow-y-auto no-scrollbar">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)', paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 1rem)' }} className="fixed inset-0 z-[600] bg-black/98 backdrop-blur-3xl overflow-y-auto no-scrollbar">
           <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onClose} className="fixed top-8 right-8 z-[610] bg-white/10 w-12 h-12 rounded-full text-white flex items-center justify-center">
             <X />
           </motion.button>
@@ -76,7 +76,7 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
             <div className={`w-full max-w-xl aspect-square rounded-[3.5rem] overflow-hidden shadow-2xl relative ${dark ? 'border border-white/5' : 'border-4 border-amber-300'}`}>
               {imgs.length > 0 ? (
                 <>
-                  <Image src={imgs[idx]} alt={product.name} fill sizes="(min-width: 768px) 40vw, 80vw" className="object-cover" />
+                  <Image src={imgs[idx]} alt={product.name} fill unoptimized sizes="(min-width: 768px) 40vw, 80vw" className="object-cover" />
                   {imgs.length > 1 && (
                     <>
                       <button onClick={() => setIdx((i) => (i - 1 + imgs.length) % imgs.length)} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 text-white p-3 rounded-full border border-white/20 backdrop-blur">
@@ -141,9 +141,9 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
                       setTimeout(() => setInlineToast(null), 1600);
                     });
                   }}
-                  className="inline-flex items-center gap-2 bg-amber-500 text-black px-5 py-4 rounded-[2rem] font-bold text-sm border border-amber-600"
+                  className="inline-flex items-center gap-2 bg-amber-500 text-black px-4 py-2 rounded-xl font-bold text-xs border border-amber-600"
                 >
-                  <Copy size={16} />
+                  <Copy size={12} />
                   <span>{t.copyLabel}</span>
                 </motion.button>
                 <motion.button
@@ -162,9 +162,9 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
                       setTimeout(() => setInlineToast(null), 1600);
                     }
                   }}
-                  className="inline-flex items-center gap-2 bg-amber-500 text-black px-5 py-4 rounded-[2rem] font-bold text-sm border border-amber-600"
+                  className="inline-flex items-center gap-2 bg-amber-500 text-black px-4 py-2 rounded-xl font-bold text-xs border border-amber-600"
                 >
-                  <Share2 size={16} />
+                  <Share2 size={12} />
                   <span>{t.shareLabel}</span>
                 </motion.button>
               </div>
@@ -175,9 +175,9 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
                     whileTap={{ scale: 0.97, borderWidth: 0 }}
                     aria-label={t.editLabel || "Edit"}
                     onClick={() => onEdit?.(product)}
-                    className="inline-flex items-center gap-2 bg-amber-500 text-black px-5 py-3 rounded-[1.6rem] font-bold text-xs border border-amber-600"
+                  className="inline-flex items-center gap-2 bg-amber-500 text-black px-4 py-2 rounded-xl font-bold text-xs border border-amber-600"
                   >
-                    <Edit2 size={14} />
+                    <Edit2 size={12} />
                     <span>{t.editLabel || "Edit"}</span>
                   </motion.button>
                   <motion.button
@@ -185,9 +185,9 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
                     whileTap={{ scale: 0.97, borderWidth: 0 }}
                     aria-label={t.deleteLabel || "Delete"}
                     onClick={() => onDelete?.(product)}
-                    className="inline-flex items-center gap-2 bg-red-500 text-black px-5 py-3 rounded-[1.6rem] font-bold text-xs border border-red-600"
+                    className="inline-flex items-center gap-2 bg-red-500 text-black px-4 py-2 rounded-xl font-bold text-xs border border-red-600"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                     <span>{t.deleteLabel || "Delete"}</span>
                   </motion.button>
                 </div>
