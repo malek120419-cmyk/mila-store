@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue, startTransition } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type User } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { ModernIcon, ProductDetails } from "./MilaEngine";
-import { Laptop, Car, Home, Phone as PhoneIcon, Sofa, Shirt, Sun, Moon, LogIn, LogOut, Search as SearchIcon, Heart, X, Eye, EyeOff, Trash2, Edit2, Copy, Share2, MapPin, Clock, RotateCcw, Tag, DollarSign, Loader2, ChevronDown } from "lucide-react";
+import { Laptop, Car, Home, Phone as PhoneIcon, Sofa, Shirt, Sun, Moon, LogIn, LogOut, Search as SearchIcon, Heart, X, Eye, EyeOff, Trash2, Edit2, Copy, Share2, MapPin, Clock, RotateCcw, Tag, DollarSign, Loader2, ChevronDown, Menu } from "lucide-react";
 import { MUNICIPALITIES } from "./MilaLogic";
 
 /* ================= SUPABASE ================= */
@@ -172,7 +172,7 @@ export default function MilaStore() {
   const [dark, setDark] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{ id: string } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   const [category, setCategory] = useState("الكل");
   const [search, setSearch] = useState("");
@@ -209,6 +209,8 @@ export default function MilaStore() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -490,29 +492,11 @@ export default function MilaStore() {
   return (
     <div suppressHydrationWarning className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={typeof window !== "undefined" ? (lang === "ar" ? "rtl" : "ltr") : "ltr"}>
 
-      <nav style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }} className={`px-6 pb-6 flex justify-between items-center sticky top-0 backdrop-blur z-50 ${dark ? 'bg-black/80' : 'bg-white border-b border-amber-300'}`}>
-        <h1 className="font-black italic text-xl">
-          MILA <span className="text-amber-500">STORE</span>
-        </h1>
-
-        <div className="flex gap-4 items-center">
-          <button
-            onClick={() => setLang(lang === "ar" ? "en" : lang === "en" ? "fr" : "ar")}
-            className="text-xs bg-amber-500 text-black px-3 py-1 rounded border-2 border-amber-600 active:border-0"
-          >
-            {lang === "ar" ? "EN" : lang === "en" ? "FR" : "AR"}
-          </button>
-
-          <ModernIcon icon={dark ? <Moon /> : <Sun />} label="Theme" onClick={() => setDark(!dark)} />
-
-          {user ? (
-            <ModernIcon icon={<LogOut />} label={t.logout} onClick={() => supabase.auth.signOut()} />
-          ) : (
-            <ModernIcon icon={<LogIn />} label={t.login} onClick={() => setShowAuth(true)} />
-          )}
-
-          
-
+      <nav style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }} className={`px-6 pb-6 flex justify-between items-center relative sticky top-0 backdrop-blur z-50 ${dark ? 'bg-black/80' : 'bg-white border-b border-amber-300'}`}>
+        <div className="flex items-center gap-3">
+          <h1 className="font-black italic text-xl">
+            MILA <span className="text-amber-500">STORE</span>
+          </h1>
           <button
             onClick={() => (user ? setShowAdd(true) : setShowAuth(true))}
             className="bg-amber-500 text-black px-4 py-2 rounded-full font-black border-2 border-amber-600 active:border-0 focus:outline-none"
@@ -520,8 +504,114 @@ export default function MilaStore() {
             {t.sell}
           </button>
         </div>
-      </nav>
 
+        <div className="flex gap-4 items-center pr-16">
+          <button
+            onClick={() => setLang(lang === "ar" ? "en" : lang === "en" ? "fr" : "ar")}
+            className="text-xs bg-amber-500 text-black px-3 py-1 rounded border-2 border-amber-600 active:border-0"
+          >
+            {lang === "ar" ? "EN" : lang === "en" ? "FR" : "AR"}
+          </button>
+          <ModernIcon icon={dark ? <Moon /> : <Sun />} label="Theme" onClick={() => setDark(!dark)} />
+
+          {!user && (
+            <ModernIcon icon={<LogIn />} label={t.login} onClick={() => setShowAuth(true)} />
+          )}
+
+        </div>
+        {user && (
+          <button
+            onClick={() => setShowProfile(p => !p)}
+            aria-label="Profile"
+            className="absolute left-1/2 -translate-x-1/2 w-10 h-10 rounded-full overflow-hidden border border-white/20 bg-white/10 flex items-center justify-center"
+            style={{ top: '0.25rem' }}
+          >
+            {(() => {
+              const meta = user?.user_metadata || {};
+              const avatarUrl = (meta as Record<string, unknown>)?.picture as string | undefined || (meta as Record<string, unknown>)?.avatar_url as string | undefined;
+              const emailAddr = user?.email || (meta as Record<string, unknown>)?.email_address as string | undefined || "";
+              if (avatarUrl) {
+                return <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />;
+              }
+              const letter = emailAddr ? String(emailAddr).charAt(0).toUpperCase() : "U";
+              return <span className="text-xs font-black">{letter}</span>;
+            })()}
+          </button>
+        )}
+      </nav>
+      <AnimatePresence>
+        {showProfile && user && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            style={{ top: 'calc(env(safe-area-inset-top) + 3.75rem)' }}
+            className={`fixed left-1/2 -translate-x-1/2 z-[950] px-4 py-3 rounded-2xl shadow-2xl ${dark ? 'bg-neutral-900 text-white border border-white/10' : 'bg-white text-black border-2 border-amber-300'}`}
+          >
+            <p className="text-xs font-black">{user?.email || (user?.user_metadata as Record<string, unknown>)?.email_address as string || "Unknown"}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.button
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.94 }}
+        onClick={() => setShowMenu(true)}
+        style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)', right: 'calc(env(safe-area-inset-right) + 0.75rem)' }}
+        className="fixed z-[900] w-12 h-12 rounded-2xl flex items-center justify-center text-white border border-white/5 bg-white/5"
+        aria-label="Menu"
+      >
+        <Menu size={20} />
+      </motion.button>
+
+      <AnimatePresence>
+        {showMenu && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000]">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
+            <motion.aside
+              initial={{ x: 120, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 120, opacity: 0 }}
+              style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 1rem)' }}
+              className={`absolute right-0 top-0 h-full w-80 sm:w-96 p-6 flex flex-col gap-4 ${dark ? 'bg-neutral-900 text-white border-l border-white/10' : 'bg-white text-black border-l-2 border-amber-300'}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-black text-amber-500">{lang === "ar" ? "القائمة" : lang === "fr" ? "Menu" : "Menu"}</h2>
+                <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowMenu(false)} className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-2xl border border-white/20 bg-white/10 backdrop-blur">
+                  <X size={18} />
+                </motion.button>
+              </div>
+              <button onClick={() => { setShowMenu(false); user ? setShowAdd(true) : setShowAuth(true); }} className="w-full px-4 py-3 rounded-2xl bg-amber-500 text-black font-black border-2 border-amber-600">
+                {t.sell}
+              </button>
+              {user ? (
+                <button onClick={() => { setShowMenu(false); supabase.auth.signOut(); }} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
+                  {t.logout}
+                </button>
+              ) : (
+                <button onClick={() => { setShowMenu(false); setShowAuth(true); }} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
+                  {t.login}
+                </button>
+              )}
+              <a href="/stats" className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border text-center`}>Stats</a>
+              <button onClick={() => { const url = typeof window !== "undefined" ? window.location.href : ""; if (navigator.share) { navigator.share({ title: "Mila Store", url }); } else { navigator.clipboard.writeText(url); } }} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
+                {lang === "ar" ? "شارك التطبيق" : lang === "fr" ? "Partager l’app" : "Share App"}
+              </button>
+              <a href="mailto:milastore@gmail.com" className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border text-center`}>
+                {t.contactUs}
+              </a>
+              <button onClick={() => setLang(lang === "ar" ? "en" : lang === "en" ? "fr" : "ar")} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
+                {lang === "ar" ? "EN" : lang === "en" ? "FR" : "AR"}
+              </button>
+              <button onClick={() => setDark(!dark)} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
+                {lang === "ar" ? "الوضع" : lang === "fr" ? "Thème" : "Theme"}
+              </button>
+              <button onClick={() => { setSearch(""); setCategory("الكل"); setLocation(""); setSortBy("newest"); setShowMenu(false); }} className="w-full px-4 py-3 rounded-2xl bg-amber-500 text-black font-black border-2 border-amber-600">
+                {t.reset}
+              </button>
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* SEARCH */}
       <div className="max-w-6xl mx-auto p-6">
         <div className="flex justify-center">
@@ -640,31 +730,32 @@ export default function MilaStore() {
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-white/5" />
                   )}
                 </div>
-                <div className="p-4 text-center">
-                  <h3 className="font-black text-base truncate">{p.name}</h3>
-                  <p className="text-amber-500 font-black mt-2">
+                <div className="p-3 text-center">
+                  <h3 className="font-black text-sm truncate">{p.name}</h3>
+                  <p className="text-amber-500 font-black mt-1">
                     {p.price} {t.price}
                   </p>
-                <div className="mt-2 flex items-center justify-center gap-2">
-                  <span className="px-3 py-1 text-[10px] rounded-full bg-white/10">{p.category}</span>
-                  <span className="px-3 py-1 text-[10px] rounded-full bg-white/10">{p.location}</span>
-                </div>
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    <span className="px-2.5 py-1 text-[10px] rounded-full bg-white/10">{p.category}</span>
+                    <span className="px-2.5 py-1 text-[10px] rounded-full bg-white/10">{p.location}</span>
+                  </div>
                 </div>
               </button>
               <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} onClick={() => setFavorites(prev => { const n = new Set(prev); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; })} className="absolute top-3 right-3 bg-black/40 backdrop-blur rounded-full p-2">
                 <Heart size={16} className={favorites.has(p.id) ? "text-amber-500" : "text-white/50"} />
               </motion.button>
-              <motion.a
-                href={`tel:${p.whatsapp}`}
-                target="_blank"
-                whileTap={{ borderWidth: 0, scale: 0.98 }}
-                className="block mx-4 mb-6 bg-green-500 text-black py-1.5 rounded-full font-black text-sm text-center border-2 border-green-700"
-              >
-                <span className="inline-flex items-center justify-center gap-2">
-                  <PhoneIcon size={14} />
-                  {t.wa}
-                </span>
-              </motion.a>
+              <div className="px-4 pb-2 flex items-center justify-center">
+                <motion.a
+                  href={`tel:${p.whatsapp}`}
+                  target="_blank"
+                  whileTap={{ borderWidth: 0, scale: 0.98 }}
+                  aria-label={t.wa}
+                  className="min-w-[140px] px-4 h-10 sm:h-12 rounded-2xl bg-green-500 text-black border-2 border-green-700 inline-flex items-center justify-center gap-2"
+                >
+                  <PhoneIcon size={16} />
+                  <span className="font-black text-xs sm:text-sm">{t.wa}</span>
+                </motion.a>
+              </div>
               <div className="px-4 pb-4 flex items-center justify-center gap-3">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -684,14 +775,13 @@ export default function MilaStore() {
                   whileTap={{ scale: 0.95, borderWidth: 0 }}
                   aria-label="Share"
                   onClick={async () => {
-                    const url = `tel:${p.whatsapp}`;
-                    const shareData = { title: p.name, text: p.description || p.name, url };
+                    const phone = String(p.whatsapp || "").replace(/\D+/g, "");
+                    const waUrl = `https://wa.me/${phone}`;
                     if (navigator.share) {
-                      await navigator.share(shareData);
+                      await navigator.share({ title: p.name, text: p.description || p.name, url: waUrl });
                       setToasts(prev => [...prev, { id: Date.now(), text: t.toastShared, type: "success" }]);
                     } else {
-                      await navigator.clipboard.writeText(url);
-                      setToasts(prev => [...prev, { id: Date.now(), text: t.toastCopied, type: "success" }]);
+                      window.open(waUrl, "_blank");
                     }
                   }}
                   className="w-9 h-9 sm:w-10 sm:h-10 p-0 rounded-full bg-amber-500 text-black border border-amber-600 flex items-center justify-center"
@@ -738,9 +828,6 @@ export default function MilaStore() {
               <X size={20} />
             </motion.button>
             <motion.div initial={{ y: 20, scale: 0.98, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1 }} className="relative bg-neutral-900/70 backdrop-blur-xl border border-white/10 p-10 rounded-none w-full h-full mx-auto my-0 flex items-center justify-center">
-              <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowAuth(false)} className="absolute top-6 right-6 z-[1001] w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-xl border border-white/20 bg-white/10 backdrop-blur-2xl">
-                <X size={18} />
-              </motion.button>
               <div className="w-full max-w-md mx-auto bg-neutral-900/80 rounded-3xl border border-white/10 p-8">
               <h2 className="text-2xl font-black text-center mb-6 text-amber-500">
                 {t.authTitle}
@@ -789,13 +876,15 @@ export default function MilaStore() {
       <AnimatePresence>
         {showAdd && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)', paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 1rem)' }} className="fixed inset-0 bg-black/80 backdrop-blur-2xl overflow-y-auto no-scrollbar">
-            <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowAdd(false)} className={`fixed top-4 right-4 z-[1000] w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl backdrop-blur-2xl ${dark ? 'text-white border border-white/20 bg-white/10' : 'text-black border border-black/20 bg-black/10'}`}>
-              <X size={20} />
-            </motion.button>
+            {/* Inner close in modal header */}
             <motion.div initial={{ y: 24, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} className={`relative p-6 sm:p-8 rounded-3xl w-[92%] max-w-md sm:max-w-xl mx-auto my-10 sm:my-24 shadow-2xl ${dark ? 'bg-neutral-900 text-white border border-white/10' : 'bg-white text-black border-2 border-amber-300'}`}>
-              <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowAdd(false)} className={`absolute top-3 right-3 z-[1001] w-10 h-10 rounded-2xl flex items-center justify-center shadow-xl ${dark ? 'text-white border border-white/20 bg-white/10' : 'text-black border-2 border-amber-300 bg-amber-50'}`}>
+              <button
+                aria-label="Close"
+                onClick={() => setShowAdd(false)}
+                className={`absolute top-3 right-3 z-[1001] w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl ${dark ? 'text-white border border-white/40 bg-white/20' : 'text-black border border-amber-300 bg-amber-50'}`}
+              >
                 <X size={18} />
-              </motion.button>
+              </button>
               <h2 className="text-lg sm:text-xl font-black text-center mb-6 text-amber-500">
                 {t.addTitle}
               </h2>

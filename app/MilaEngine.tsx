@@ -69,8 +69,15 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
     <AnimatePresence>
       {product && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)', paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 1rem)' }} className="fixed inset-0 z-[600] bg-black/98 backdrop-blur-3xl overflow-y-auto no-scrollbar">
-          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onClose} className="fixed top-8 right-8 z-[610] bg-white/10 w-12 h-12 rounded-full text-white flex items-center justify-center">
-            <X />
+          <motion.button
+            aria-label="Close"
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.94 }}
+            onClick={onClose}
+            style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)', right: 'calc(env(safe-area-inset-right) + 0.75rem)' }}
+            className="fixed z-[620] bg-white/20 border border-white/40 shadow-2xl w-12 h-12 rounded-2xl text-white flex items-center justify-center backdrop-blur"
+          >
+            <X size={18} />
           </motion.button>
           <div className="max-w-5xl mx-auto mt-20 flex flex-col items-center pb-20">
             <div className={`w-full max-w-xl aspect-square rounded-[3.5rem] overflow-hidden shadow-2xl relative ${dark ? 'border border-white/5' : 'border-4 border-amber-300'}`}>
@@ -151,15 +158,14 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
                   whileTap={{ scale: 0.96, borderWidth: 0 }}
                   aria-label="Share"
                   onClick={async () => {
-                    const shareData = { title: product.name, text: product.description || product.name, url: `tel:${product.whatsapp}` };
+                    const phone = String(product.whatsapp || "").replace(/\D+/g, "");
+                    const waUrl = `https://wa.me/${phone}`;
                     if (navigator.share) {
-                      await navigator.share(shareData);
+                      await navigator.share({ title: product.name, text: product.description || product.name, url: waUrl });
                       setInlineToast({ id: Date.now(), text: t.toastShared });
                       setTimeout(() => setInlineToast(null), 1600);
                     } else {
-                      await navigator.clipboard.writeText(product.whatsapp);
-                      setInlineToast({ id: Date.now(), text: t.toastCopied });
-                      setTimeout(() => setInlineToast(null), 1600);
+                      window.open(waUrl, "_blank");
                     }
                   }}
                   className="inline-flex items-center gap-2 bg-amber-500 text-black px-4 py-2 rounded-xl font-bold text-xs border border-amber-600"
