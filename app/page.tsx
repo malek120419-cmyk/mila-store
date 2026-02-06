@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue, startTransition } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -192,6 +192,10 @@ export default function MilaStore() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const isLoadingRef = useRef(false);
+  const lastLoadTsRef = useRef(0);
+  const CACHE_KEY = "mila_products_cache";
+  const CACHE_TTL_MS = 5 * 60 * 1000;
 
   const [showAuth, setShowAuth] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
@@ -244,32 +248,73 @@ export default function MilaStore() {
   }, [showAdd, showAuth]);
   /* ================= AUTH ================= */
   const loadProducts = useCallback(async (append = false) => {
-    const start = append ? (page + 1) * PAGE_SIZE : 0;
-    const end = start + PAGE_SIZE - 1;
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(start, end);
-
-    const rows = (data as Product[]) || [];
-    if (append) {
-      setProducts(prev => [...prev, ...rows]);
-      setPage(p => p + 1);
-    } else {
-      setProducts(rows);
-      setPage(0);
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
+    try {
+      const start = append ? (page + 1) * PAGE_SIZE : 0;
+      const end = start + PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from("products")
+        .select("id,name,description,price,category,location,whatsapp,image_url,created_at,user_id")
+        .order("created_at", { ascending: false })
+        .range(start, end);
+      if (error) {
+        const msg = String((error as any)?.message || "");
+        if (msg.toLowerCase().includes("abort")) {
+          setLoading(false);
+          isLoadingRef.current = false;
+          return;
+        }
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
+      }
+      const rows = (data as Product[]) || [];
+      if (append) {
+        startTransition(() => {
+          setProducts(prev => [...prev, ...rows]);
+          setPage(p => p + 1);
+        });
+      } else {
+        startTransition(() => {
+          setProducts(rows);
+          setPage(0);
+        });
+      }
+      if (rows.length < PAGE_SIZE) setHasMore(false);
+      setLoading(false);
+      isLoadingRef.current = false;
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: rows }));
+      } catch {}
+    } catch (err: any) {
+      const msg = String(err?.message || "");
+      if (msg.toLowerCase().includes("abort")) {
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
+      }
+      setLoading(false);
+      isLoadingRef.current = false;
     }
-    if (rows.length < PAGE_SIZE) setHasMore(false);
-    setLoading(false);
   }, [page]);
 
   useEffect(() => {
     supabase.auth.getSession().then(r => setUser(r.data.session?.user ?? null));
     supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
-    setTimeout(() => {
-      loadProducts(false);
-    }, 0);
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.ts && Array.isArray(parsed.data) && (Date.now() - parsed.ts) < CACHE_TTL_MS) {
+          startTransition(() => {
+            setProducts(parsed.data as Product[]);
+            setLoading(false);
+          });
+        }
+      }
+    } catch {}
+    loadProducts(false);
   }, [loadProducts]);
 
   useEffect(() => {
@@ -277,7 +322,12 @@ export default function MilaStore() {
     if (!el || !hasMore) return;
     const obs = new IntersectionObserver((entries) => {
       entries.forEach((en) => {
-        if (en.isIntersecting) loadProducts(true);
+        if (!en.isIntersecting) return;
+        const now = Date.now();
+        if (isLoadingRef.current) return;
+        if (now - lastLoadTsRef.current < 800) return;
+        lastLoadTsRef.current = now;
+        loadProducts(true);
       });
     }, { rootMargin: "200px" });
     obs.observe(el);
@@ -388,14 +438,15 @@ export default function MilaStore() {
   };
 
   /* ================= FILTER ================= */
+  const deferredSearch = useDeferredValue(search);
   const filtered = useMemo(() => {
     const base = products.filter(p =>
       (category === "الكل" || p.category === category) &&
-      p.name.toLowerCase().includes(search.toLowerCase()) &&
+      p.name.toLowerCase().includes(deferredSearch.toLowerCase()) &&
       (!location || p.location === location)
     );
     return base;
-  }, [products, category, search, location]);
+  }, [products, category, deferredSearch, location]);
 
   const tinyBlur = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0nMScgaGVpZ2h0PScxJyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnPjxyZWN0IHdpZHRoPScxJyBoZWlnaHQ9JzEnIGZpbGw9J2xpbmVhcmdyYWRpZW50KDEyMCwgMTIwLCAxMjApJy8+PC9zdmc+";
   const compressImage = async (file: File, maxSide = 1920, quality = 0.8): Promise<Blob> => {
