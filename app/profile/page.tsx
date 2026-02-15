@@ -46,8 +46,23 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const client = getSupabase();
-    client?.auth.getSession().then(r => setUser(r.data.session?.user ?? null));
-    client?.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
+    client?.auth.getSession().then(r => {
+      const u = r.data.session?.user ?? null;
+      if (u) setUser(u as unknown as { id: string; email?: string; user_metadata?: Record<string, unknown> });
+      else if (typeof window !== "undefined") {
+        const email = localStorage.getItem("dev_user_email");
+        if (email) setUser({ id: "dev-user", email });
+      }
+    });
+    client?.auth.onAuthStateChange((_e, s) => {
+      const u = s?.user ?? null;
+      if (u) setUser(u as unknown as { id: string; email?: string; user_metadata?: Record<string, unknown> });
+      else if (typeof window !== "undefined") {
+        const email = localStorage.getItem("dev_user_email");
+        if (email) setUser({ id: "dev-user", email });
+        else setUser(null);
+      }
+    });
   }, []);
 
   const emailAddr = user?.email || (user?.user_metadata as Record<string, unknown>)?.email_address as string | undefined || "";

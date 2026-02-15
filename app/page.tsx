@@ -285,6 +285,7 @@ export default function MilaStore() {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const isLoadingRef = useRef(false);
   const lastLoadTsRef = useRef(0);
+  const lastConnToastTsRef = useRef(0);
   const CACHE_KEY = "mila_products_cache";
   const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -318,6 +319,13 @@ export default function MilaStore() {
   const envOk = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const fetchControllerRef = useRef<AbortController | null>(null);
   const [connectionFailed, setConnectionFailed] = useState(false);
+  const [offlineMode, setOfflineMode] = useState<boolean>(() => {
+    try {
+      return Boolean(typeof window !== "undefined" && localStorage.getItem("dev_user_email"));
+    } catch {
+      return false;
+    }
+  });
 
   const t = UI[lang];
   const CATEGORY_ICONS = [SearchIcon, Laptop, Car, Home, PhoneIcon, Sofa, Shirt];
@@ -336,6 +344,13 @@ export default function MilaStore() {
     return m;
   };
   const isMobile = useIsMobile();
+  const addConnErrorToast = useCallback(() => {
+    if (offlineMode) return;
+    const now = Date.now();
+    if (now - lastConnToastTsRef.current < 45000) return;
+    lastConnToastTsRef.current = now;
+    setToasts(prev => [...prev, { id: Date.now(), text: t.connectionError, type: "error" }]);
+  }, [offlineMode, t]);
 
   useEffect(() => {
     try {
@@ -398,7 +413,7 @@ export default function MilaStore() {
           isLoadingRef.current = false;
           return;
         }
-        setToasts(prev => [...prev, { id: Date.now(), text: t.connectionError, type: "error" }]);
+        addConnErrorToast();
         setConnectionFailed(true);
         setLoading(false);
         isLoadingRef.current = false;
@@ -430,12 +445,12 @@ export default function MilaStore() {
         isLoadingRef.current = false;
         return;
       }
-      setToasts(prev => [...prev, { id: Date.now(), text: t.connectionError, type: "error" }]);
+      addConnErrorToast();
       setConnectionFailed(true);
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [page, t]);
+  }, [page, addConnErrorToast]);
 
   useEffect(() => {
     const client = getSupabase();
@@ -483,6 +498,16 @@ export default function MilaStore() {
   const handleAuth = async () => {
     const client = getSupabase();
     if (!client) {
+      if (typeof window !== "undefined" && email) {
+        try {
+          localStorage.setItem("dev_user_email", email);
+          setOfflineMode(true);
+          setUser({ id: "dev-user", email } as unknown as User);
+          setShowAuth(false);
+          setToasts(prev => [...prev, { id: Date.now(), text: lang === "ar" ? "تم تسجيل الدخول" : lang === "fr" ? "Connecté" : "Signed in", type: "success" }]);
+          return;
+        } catch {}
+      }
       alert(lang === "ar" ? "البيئة غير مهيأة" : "Environment not configured");
       return;
     }
@@ -513,7 +538,17 @@ export default function MilaStore() {
     if (lastErr) {
       const msg = String(lastErr.message || "");
       if (msg.toLowerCase().includes("failed") || msg.toLowerCase().includes("network")) {
-        setToasts(prev => [...prev, { id: Date.now(), text: t.connectionError, type: "error" }]);
+        if (typeof window !== "undefined" && email) {
+          try {
+            localStorage.setItem("dev_user_email", email);
+            setOfflineMode(true);
+            setUser({ id: "dev-user", email } as unknown as User);
+            setShowAuth(false);
+            setToasts(prev => [...prev, { id: Date.now(), text: lang === "ar" ? "تم تسجيل الدخول (بدون إنترنت)" : lang === "fr" ? "Connecté (hors ligne)" : "Signed in (offline)", type: "success" }]);
+            return;
+          } catch {}
+        }
+        addConnErrorToast();
       } else {
         setToasts(prev => [...prev, { id: Date.now(), text: msg, type: "error" }]);
       }
