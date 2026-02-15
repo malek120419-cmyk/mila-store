@@ -18,12 +18,27 @@ const getSupabase = (): SupabaseClient | null => {
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {
     const safeClient = {
       auth: {
-        getSession: async () => ({ data: { session: null }, error: null }),
+        getSession: async () => {
+          const email = typeof window !== "undefined" ? localStorage.getItem("dev_user_email") : null;
+          const session = email ? { user: { id: "dev-user", email } } : null;
+          return { data: { session }, error: null };
+        },
         onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-        signUp: async () => ({ data: {}, error: null }),
-        signInWithPassword: async () => ({ data: {}, error: null }),
+        signUp: async (args: { email: string; password: string }) => {
+          const email = args?.email || "";
+          if (typeof window !== "undefined") localStorage.setItem("dev_user_email", email);
+          return { data: { user: { id: "dev-user", email } }, error: null };
+        },
+        signInWithPassword: async (args: { email: string; password: string }) => {
+          const email = args?.email || "";
+          if (typeof window !== "undefined") localStorage.setItem("dev_user_email", email);
+          return { data: { user: { id: "dev-user", email } }, error: null };
+        },
         resetPasswordForEmail: async () => ({ data: {}, error: null }),
-        signOut: async () => ({ error: null })
+        signOut: async () => {
+          if (typeof window !== "undefined") localStorage.removeItem("dev_user_email");
+          return { error: null };
+        }
       },
       from: () => ({
         select: () => ({
@@ -285,7 +300,10 @@ export default function MilaStore() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
-  const [showMenu, setShowMenu] = useState(false);
+  const [showMenu, setShowMenu] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return !/Mobi|Android/i.test(navigator.userAgent);
+  });
   const [showProfile] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -305,6 +323,19 @@ export default function MilaStore() {
   const CATEGORY_ICONS = [SearchIcon, Laptop, Car, Home, PhoneIcon, Sofa, Shirt];
   const containerVariants = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
   const itemVariants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
+  const useIsMobile = () => {
+    const [m, setM] = useState(false);
+    useEffect(() => {
+      if (typeof window === "undefined") return;
+      const mq = window.matchMedia("(max-width: 768px)");
+      const onChange = () => setM(mq.matches);
+      onChange();
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    }, []);
+    return m;
+  };
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     try {
@@ -455,22 +486,38 @@ export default function MilaStore() {
       alert(lang === "ar" ? "البيئة غير مهيأة" : "Environment not configured");
       return;
     }
-    const res = isSignup
-      ? await client.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              username: signupUsername,
-              phone: signupPhone,
-              email_address: email
+    let lastErr: { message?: string } | null = null;
+    for (let i = 0; i < 2; i++) {
+      const res = isSignup
+        ? await client.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                username: signupUsername,
+                phone: signupPhone,
+                email_address: email
+              }
             }
-          }
-        })
-      : await client.auth.signInWithPassword({ email, password });
-
-    if (res.error) alert(res.error.message);
-    else setShowAuth(false);
+          })
+        : await client.auth.signInWithPassword({ email, password });
+      if (!res.error) {
+        setShowAuth(false);
+        client.auth.getSession().then(r => setUser(r.data.session?.user ?? null));
+        setToasts(prev => [...prev, { id: Date.now(), text: lang === "ar" ? "تم تسجيل الدخول" : lang === "fr" ? "Connecté" : "Signed in", type: "success" }]);
+        return;
+      }
+      lastErr = res.error;
+      await new Promise(r => setTimeout(r, 700));
+    }
+    if (lastErr) {
+      const msg = String(lastErr.message || "");
+      if (msg.toLowerCase().includes("failed") || msg.toLowerCase().includes("network")) {
+        setToasts(prev => [...prev, { id: Date.now(), text: t.connectionError, type: "error" }]);
+      } else {
+        setToasts(prev => [...prev, { id: Date.now(), text: msg, type: "error" }]);
+      }
+    }
   };
   const resetPassword = async () => {
     if (!email) return alert(lang === "ar" ? "أدخل البريد الإلكتروني أولاً" : "Enter email first");
@@ -618,7 +665,7 @@ export default function MilaStore() {
     return (
       <div suppressHydrationWarning className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={typeof window !== "undefined" ? (lang === "ar" ? "rtl" : "ltr") : "ltr"}>
         <div className="max-w-6xl mx-auto p-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-4"} gap-6`}>
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="bg-white/5 rounded-3xl overflow-hidden animate-pulse">
                 <div className="aspect-square bg-white/10" />
@@ -855,7 +902,7 @@ export default function MilaStore() {
           ))}
         </div>
 
-        <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-2 gap-4">
+        <motion.div variants={containerVariants} initial="hidden" animate="show" className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-3 lg:grid-cols-4"} gap-4`}>
           {filtered.map((p, i) => (
             <motion.div key={p.id} variants={itemVariants} whileHover={{ y: -4, scale: 1.01 }} className={`${dark ? 'bg-white/5' : 'bg-white border-4 border-amber-300'} rounded-3xl overflow-hidden relative`}>
               <div className="absolute left-3 top-3 bg-amber-500 text-black text-[10px] font-black px-3 py-1 rounded-full"> {t.cash} </div>
@@ -1028,8 +1075,10 @@ export default function MilaStore() {
       <AnimatePresence>
         {showAdd && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)', paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 1rem)' }} className="fixed inset-0 bg-black/80 backdrop-blur-2xl overflow-y-auto no-scrollbar">
-            {/* Inner close in modal header */}
             <motion.div initial={{ y: 24, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} className={`relative p-6 sm:p-8 rounded-3xl w-[92%] max-w-md sm:max-w-xl mx-auto my-10 sm:my-24 shadow-2xl ${dark ? 'bg-neutral-900 text-white border border-white/10' : 'bg-white text-black border-2 border-amber-300'}`}>
+              <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowAdd(false)} className="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-2xl border border-white/20 bg-white/10 backdrop-blur">
+                <X size={18} />
+              </motion.button>
               
               <h2 className="text-lg sm:text-xl font-black text-center mb-6 text-amber-500">
                 {t.addTitle}

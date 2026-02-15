@@ -8,11 +8,28 @@ import { X } from "lucide-react";
 let supabaseRef: SupabaseClient | null = null;
 const getSupabase = (): SupabaseClient | null => {
   if (supabaseRef) return supabaseRef;
-  const rawUrl = String((process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "") as string).trim();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!rawUrl || !key) return null;
-  if (!rawUrl.startsWith("https://") || !rawUrl.includes(".supabase.co")) return null;
-  supabaseRef = createClient(rawUrl.replace(/\/+$/, ""), key);
+  const url = "https://dqgtwsrpoguvygngqox.supabase.co".replace(/\/+$/, "");
+  const key = String(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
+  if (!url || !key) return null;
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    const safeClient = {
+      auth: {
+        getSession: async () => {
+          const email = typeof window !== "undefined" ? localStorage.getItem("dev_user_email") : null;
+          const session = email ? { user: { id: "dev-user", email } } : null;
+          return { data: { session }, error: null };
+        },
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signOut: async () => {
+          if (typeof window !== "undefined") localStorage.removeItem("dev_user_email");
+          return { error: null };
+        }
+      }
+    } as unknown as SupabaseClient;
+    supabaseRef = safeClient;
+    return supabaseRef;
+  }
+  supabaseRef = createClient(url, key, { global: { fetch: (input, init = {}) => fetch(input, { ...init, cache: "no-store" as RequestCache }) } });
   return supabaseRef;
 };
 
