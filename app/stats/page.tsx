@@ -1,11 +1,19 @@
  "use client";
  import React, { useEffect, useMemo, useState } from "react";
- import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  
- const supabase = createClient(
-   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
- );
+let supabaseRef: SupabaseClient | null = null;
+const getSupabase = (): SupabaseClient | null => {
+  if (supabaseRef) return supabaseRef;
+  const url = String((process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "") as string).trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  if (!url.startsWith("https://") || !url.includes(".supabase.co")) return null;
+  supabaseRef = createClient(url, key);
+  return supabaseRef;
+};
+  const envUrl = String((process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "") as string).trim();
+  const envOk = envUrl.startsWith("https://") && envUrl.includes(".supabase.co") && Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
  
  type Product = {
    id: string;
@@ -26,21 +34,25 @@
    const [loading, setLoading] = useState(true);
  
    useEffect(() => {
-     supabase.auth.getSession().then(r => setUser(r.data.session?.user ?? null));
-   }, []);
+    if (!envOk) return;
+    const client = getSupabase();
+    client?.auth.getSession().then(r => setUser(r.data.session?.user ?? null));
+  }, []);
  
    useEffect(() => {
-     if (!user) return;
-     supabase
-       .from("products")
-       .select("id,name,price,category,created_at")
-       .eq("user_id", user.id)
-       .order("created_at", { ascending: false })
-       .then(({ data }) => {
-         setProducts((data as Product[]) || []);
-         setLoading(false);
-       });
-   }, [user]);
+    if (!user || !envOk) return;
+    const client = getSupabase();
+    if (!client) return;
+    client
+      .from("products")
+      .select("id,name,price,category,created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setProducts((data as Product[]) || []);
+        setLoading(false);
+      });
+  }, [user]);
  
    const stats = useMemo(() => {
      const totalListed = products.length;
@@ -60,12 +72,17 @@
      return { totalListed, totalValue, avgPrice, topCategory, listedThisMonth };
    }, [products]);
  
-   if (!user) {
+  if (!user) {
      return (
        <main className="min-h-screen bg-[#050505] text-white p-8">
          <div className="max-w-4xl mx-auto">
            <h1 className="text-3xl font-black mb-4 text-amber-500">Seller Stats</h1>
-           <p className="opacity-60">Please sign in to view your statistics.</p>
+          {!envOk && (
+            <div className="mb-4 px-4 py-3 rounded-2xl bg-red-500/30 border border-red-400/40">
+              <p className="text-xs font-black">Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.</p>
+            </div>
+          )}
+          <p className="opacity-60">Please sign in to view your statistics.</p>
          </div>
        </main>
      );

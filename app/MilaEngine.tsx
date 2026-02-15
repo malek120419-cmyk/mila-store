@@ -4,31 +4,66 @@ import type { ReactNode } from 'react';
 import Image from "next/image";
 import { X, Copy, Share2, Phone, ChevronLeft, ChevronRight, Edit2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // أيقونات جميلة تفاعلية
 type ModernIconProps = { icon: ReactNode; label: string; onClick?: () => void };
-export const ModernIcon = ({ icon, label, onClick }: ModernIconProps) => (
-  <motion.button
-    whileHover={{ y: -5 }}
-    whileTap={{ scale: 0.9 }}
-    onClick={onClick}
-    aria-label={typeof label === "string" ? label : "action"}
-    role="button"
-    tabIndex={0}
-    onKeyDown={(e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onClick?.();
-      }
-    }}
-    className="flex flex-col items-center gap-1 cursor-pointer group focus:outline-none"
-  >
-    <div className="w-12 h-12 flex items-center justify-center text-xl bg-white/5 rounded-2xl group-hover:bg-amber-500 group-hover:text-black transition-all border border-white/5">
-      {icon}
-    </div>
-    <span className="text-[8px] font-black uppercase opacity-40 group-hover:opacity-100 tracking-tighter">{label}</span>
-  </motion.button>
-);
+export const ModernIcon = ({ icon, label, onClick }: ModernIconProps) => {
+  const lowMotion = (() => {
+    try {
+      const prefersReduced = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const lowCpu = typeof navigator !== "undefined" && typeof navigator.hardwareConcurrency === "number" && navigator.hardwareConcurrency <= 4;
+      const net = (navigator as unknown as { connection?: { effectiveType?: string } })?.connection?.effectiveType || "";
+      const slowNet = typeof net === "string" && (net.includes("2g") || net.includes("slow"));
+      return prefersReduced || lowCpu || slowNet;
+    } catch {
+      return false;
+    }
+  })();
+  const hoverMain = lowMotion ? { y: -6, scale: 1.04 } : { y: -10, scale: 1.1, rotate: 2 };
+  const tapMain = lowMotion ? { scale: 0.97 } : { scale: 0.94, rotate: -2 };
+  const ringDuration = lowMotion ? 0.8 : 1.1;
+  return (
+    <motion.button
+      whileHover={hoverMain}
+      whileTap={tapMain}
+      transition={{ type: "spring", stiffness: lowMotion ? 360 : 480, damping: lowMotion ? 22 : 18 }}
+      onClick={onClick}
+      aria-label={typeof label === "string" ? label : "action"}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      className="flex flex-col items-center gap-1 cursor-pointer group focus:outline-none"
+    >
+      <motion.div
+        whileHover={{ scale: lowMotion ? 1.03 : 1.06 }}
+        transition={{ type: "spring", stiffness: lowMotion ? 360 : 420, damping: lowMotion ? 22 : 20 }}
+        className="relative w-12 h-12 flex items-center justify-center text-xl bg-white/5 rounded-2xl border border-white/5 overflow-hidden will-change-transform"
+      >
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileHover={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="absolute inset-0 bg-amber-500/0 group-hover:bg-amber-500/90 transition-colors"
+        />
+        <motion.div
+          className="absolute inset-0 rounded-2xl"
+          initial={{ opacity: 0 }}
+          whileHover={{ opacity: 1, scale: lowMotion ? 1.02 : 1.08 }}
+          transition={{ repeat: Infinity, duration: ringDuration, ease: "easeInOut" }}
+          style={{ boxShadow: "0 0 0 0.35rem rgba(245, 158, 11, 0.3)" }}
+        />
+        <span className="relative z-10 group-hover:text-black">{icon}</span>
+      </motion.div>
+      <span className="text-[8px] font-black uppercase opacity-40 group-hover:opacity-100 tracking-tighter">{label}</span>
+    </motion.button>
+  );
+};
 
 // نافذة تفاصيل المنتج المظورة مع التقييم
 type Product = {
@@ -211,4 +246,18 @@ export const ProductDetails = ({ product, onClose, userRating, setUserRating, t,
       )}
     </AnimatePresence>
   );
+};
+
+let supabaseRef: SupabaseClient | null = null;
+export const getSupabaseHardcoded = (): SupabaseClient | null => {
+  if (supabaseRef) return supabaseRef;
+  const supabaseUrl = "https://dqgtwsrpoguvygngqox.supabase.co".replace(/\/+$/, "");
+  const supabaseKey = String(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
+  if (!supabaseUrl || !supabaseKey) return null;
+  const customFetch: typeof fetch = (input, init = {}) => {
+    const nextInit = { ...init, cache: "no-store" as RequestCache };
+    return fetch(input, nextInit);
+  };
+  supabaseRef = createClient(supabaseUrl, supabaseKey, { global: { fetch: customFetch } });
+  return supabaseRef;
 };

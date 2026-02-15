@@ -1,11 +1,20 @@
 "use client";
 import React, { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+let supabaseRef: SupabaseClient | null = null;
+const getSupabase = (): SupabaseClient | null => {
+  if (supabaseRef) return supabaseRef;
+  const url = String((process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "") as string).trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  if (!url.startsWith("https://") || !url.includes(".supabase.co")) return null;
+  supabaseRef = createClient(url, key);
+  return supabaseRef;
+};
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
@@ -14,6 +23,8 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
+  const envUrl = String(process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  const envOk = envUrl.startsWith("https://") && envUrl.includes(".supabase.co") && Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const [lang] = useState<"ar" | "en" | "fr">(() => {
     try {
       const saved = localStorage.getItem("lang") as "ar" | "en" | "fr" | null;
@@ -62,11 +73,24 @@ export default function AuthPage() {
   const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = isSignUp 
-      ? await supabase.auth.signUp({ email, password, options: { data: { username, phone, email_address: email } } }) 
-      : await supabase.auth.signInWithPassword({ email, password });
+    if (!envOk) {
+      alert("Supabase env is not configured.");
+      setLoading(false);
+      return;
+    }
+    const client = getSupabase();
+    const { error } = isSignUp
+      ? await client!.auth.signUp({ email, password, options: { data: { username, phone, email_address: email } } })
+      : await client!.auth.signInWithPassword({ email, password });
     
-    if (error) alert(error.message);
+    if (error) {
+      const msg = String(error.message || "");
+      if (msg.toLowerCase().includes("failed to fetch") || msg.toLowerCase().includes("network")) {
+        alert(lang === "ar" ? "تعذر الاتصال - تحقق من الإنترنت أو الإعدادات" : lang === "fr" ? "Échec de connexion — vérifiez internet ou paramètres" : "Connection failed — check internet or settings");
+      } else {
+        alert(error.message);
+      }
+    }
     else window.location.href = '/';
     setLoading(false);
   };
@@ -79,6 +103,11 @@ export default function AuthPage() {
       <motion.div initial={{ opacity: 0, scale: 0.98, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-[#0a0a0a]/80 backdrop-blur-xl w-full max-w-md mx-auto my-24 p-12 rounded-[3.5rem] border border-white/10 shadow-2xl text-center">
         <h2 className="text-4xl font-black italic text-amber-500 mb-2 uppercase tracking-tighter">{t.title}</h2>
         <p className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-12">{t.tagline}</p>
+        {!envOk && (
+          <div className="mb-4 px-4 py-3 rounded-2xl bg-red-500/30 border border-red-400/40">
+            <p className="text-xs font-black">Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.</p>
+          </div>
+        )}
         
         <form onSubmit={handleAuth} className="space-y-4">
           {isSignUp ? (

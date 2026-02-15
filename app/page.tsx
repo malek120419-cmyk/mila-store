@@ -1,18 +1,91 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue, startTransition } from "react";
-import { createClient, type User } from "@supabase/supabase-js";
+import { createClient, type User, type SupabaseClient } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { ModernIcon, ProductDetails } from "./MilaEngine";
-import { Laptop, Car, Home, Phone as PhoneIcon, Sofa, Shirt, Sun, Moon, LogIn, LogOut, Search as SearchIcon, Heart, X, Eye, EyeOff, Trash2, Edit2, Copy, Share2, MapPin, Clock, RotateCcw, Tag, DollarSign, Loader2, ChevronDown, Menu } from "lucide-react";
+import { Laptop, Car, Home, Phone as PhoneIcon, Sofa, Shirt, Sun, Moon, LogIn, Search as SearchIcon, Heart, X, Eye, EyeOff, Trash2, Edit2, Copy, Share2, MapPin, Clock, RotateCcw, Tag, DollarSign, Loader2, ChevronDown, Menu, AlertTriangle, Settings, BarChart3 } from "lucide-react";
 import { MUNICIPALITIES } from "./MilaLogic";
 
 /* ================= SUPABASE ================= */
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+let supabaseRef: SupabaseClient | null = null;
+const getSupabase = (): SupabaseClient | null => {
+  if (supabaseRef) return supabaseRef;
+  const supabaseUrl = "https://dqgtwsrpoguvygngqox.supabase.co".replace(/\/+$/, "");
+  const key = String(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
+  if (!supabaseUrl || !key) return null;
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    const safeClient = {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signUp: async () => ({ data: {}, error: null }),
+        signInWithPassword: async () => ({ data: {}, error: null }),
+        resetPasswordForEmail: async () => ({ data: {}, error: null }),
+        signOut: async () => ({ error: null })
+      },
+      from: () => ({
+        select: () => ({
+          order: () => ({
+            range: async () => ({ data: [], error: null })
+          })
+        }),
+        delete: () => ({ eq: async () => ({ data: {}, error: null }) }),
+        update: () => ({ eq: async () => ({ data: {}, error: null }) }),
+        insert: async () => ({ data: {}, error: null }),
+        eq: () => ({
+          order: () => ({
+            then: (cb: (arg: { data: unknown[] }) => unknown) => Promise.resolve(cb({ data: [] }))
+          })
+        })
+      }),
+      storage: {
+        from: () => ({
+          upload: async () => ({ data: {}, error: null }),
+          getPublicUrl: () => ({ data: { publicUrl: "" }, error: null })
+        })
+      }
+    } as unknown as SupabaseClient;
+    supabaseRef = safeClient;
+    return supabaseRef;
+  }
+  const customFetch: typeof fetch = (input, init = {}) => {
+    const nextInit = { ...init, cache: "no-store" as RequestCache };
+    return fetch(input, nextInit);
+  };
+  supabaseRef = createClient(supabaseUrl, key, { global: { fetch: customFetch } });
+  return supabaseRef;
+};
+
+type ErrorBoundaryProps = { children: React.ReactNode; onRetry: () => void; dark: boolean; t: { connectionError: string }; lang: "ar" | "en" | "fr" };
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: boolean }> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div className={`rounded-3xl p-8 text-center ${this.props.dark ? 'bg-white/5 border border-white/10' : 'bg-white border-2 border-amber-300'}`}>
+            <div className="mx-auto mb-4 w-14 h-14 flex items-center justify-center rounded-2xl bg-red-500/20 border border-red-400/40">
+              <AlertTriangle className="text-red-500" />
+            </div>
+            <p className="text-sm font-black">{this.props.t.connectionError}</p>
+            <div className="mt-4 flex items-center justify-center">
+              <ModernIcon icon={<RotateCcw />} label={this.props.lang === "ar" ? "إعادة" : this.props.lang === "fr" ? "Réessayer" : "Retry"} onClick={this.props.onRetry} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return <>{this.props.children}</>;
+  }
+}
 
 /* ================= DATA ================= */
 const CATEGORIES = {
@@ -58,6 +131,7 @@ const UI = {
     toastPublished: "تم نشر المنتج بنجاح",
     toastUpdated: "تم تعديل المنتج",
     toastError: "حدث خطأ",
+    connectionError: "تعذر الاتصال - تحقق من الإنترنت أو الإعدادات",
     toastTooManyImages: "الحد الأقصى 30 صورة",
     errorNameRequired: "الاسم مطلوب",
     errorPriceInvalid: "السعر غير صالح",
@@ -91,7 +165,7 @@ const UI = {
     toastCopied: "Link copied",
     toastShared: "Shared",
     toastDeleted: "Product deleted",
-    copyLabel: "Copy link",
+    copyLabel: "Copy number",
     shareLabel: "Share",
     rateLabel: "Tap to rate"
     ,
@@ -99,6 +173,7 @@ const UI = {
     toastPublished: "Product published successfully",
     toastUpdated: "Product updated",
     toastError: "An error occurred",
+    connectionError: "Connection failed — check internet or settings",
     toastTooManyImages: "Maximum 30 images",
     errorNameRequired: "Name is required",
     errorPriceInvalid: "Invalid price",
@@ -132,7 +207,7 @@ const UI = {
     toastCopied: "Lien copié",
     toastShared: "Partagé",
     toastDeleted: "Produit supprimé",
-    copyLabel: "Copier le lien",
+    copyLabel: "Copier le numéro",
     shareLabel: "Partager",
     rateLabel: "Touchez pour noter"
     ,
@@ -140,6 +215,7 @@ const UI = {
     toastPublished: "Produit publié avec succès",
     toastUpdated: "Produit modifié",
     toastError: "Une erreur s’est produite",
+    connectionError: "Échec de connexion — vérifiez internet ou paramètres",
     toastTooManyImages: "Maximum 30 images",
     errorNameRequired: "Le nom est requis",
     errorPriceInvalid: "Prix invalide",
@@ -210,7 +286,7 @@ export default function MilaStore() {
   const [showAdd, setShowAdd] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
   const [showMenu, setShowMenu] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
+  const [showProfile] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -221,6 +297,9 @@ export default function MilaStore() {
   });
   const [formErrors, setFormErrors] = useState<{ [k: string]: string }>({});
   const [isEditing, setIsEditing] = useState(false);
+  const envOk = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const fetchControllerRef = useRef<AbortController | null>(null);
+  const [connectionFailed, setConnectionFailed] = useState(false);
 
   const t = UI[lang];
   const CATEGORY_ICONS = [SearchIcon, Laptop, Car, Home, PhoneIcon, Sofa, Shirt];
@@ -232,6 +311,18 @@ export default function MilaStore() {
       localStorage.setItem("favorites", JSON.stringify(Array.from(favorites)));
     } catch {}
   }, [favorites]);
+  useEffect(() => {
+    if (!envOk) {
+      try {
+        const keys = Object.keys(localStorage);
+        keys.forEach(k => {
+          if (k.startsWith("sb-")) {
+            localStorage.removeItem(k);
+          }
+        });
+      } catch {}
+    }
+  }, [envOk]);
   useEffect(() => {
     try {
       localStorage.setItem("lang", lang);
@@ -251,22 +342,33 @@ export default function MilaStore() {
   /* ================= AUTH ================= */
   const loadProducts = useCallback(async (append = false) => {
     if (isLoadingRef.current) return;
+    if (fetchControllerRef.current?.signal.aborted) return;
+    fetchControllerRef.current = new AbortController();
     isLoadingRef.current = true;
     try {
+      const client = getSupabase();
+      if (!client) {
+        setLoading(false);
+        isLoadingRef.current = false;
+        setConnectionFailed(true);
+        return;
+      }
       const start = append ? (page + 1) * PAGE_SIZE : 0;
       const end = start + PAGE_SIZE - 1;
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from("products")
         .select("id,name,description,price,category,location,whatsapp,image_url,created_at,user_id")
         .order("created_at", { ascending: false })
         .range(start, end);
       if (error) {
-        const msg = String((error as any)?.message || "");
+        const msg = typeof (error as { message?: string }).message === "string" ? (error as { message?: string }).message! : "";
         if (msg.toLowerCase().includes("abort")) {
           setLoading(false);
           isLoadingRef.current = false;
           return;
         }
+        setToasts(prev => [...prev, { id: Date.now(), text: t.connectionError, type: "error" }]);
+        setConnectionFailed(true);
         setLoading(false);
         isLoadingRef.current = false;
         return;
@@ -286,24 +388,30 @@ export default function MilaStore() {
       if (rows.length < PAGE_SIZE) setHasMore(false);
       setLoading(false);
       isLoadingRef.current = false;
+      setConnectionFailed(false);
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: rows }));
       } catch {}
-    } catch (err: any) {
-      const msg = String(err?.message || "");
+    } catch (err: unknown) {
+      const msg = typeof (err as { message?: string }).message === "string" ? (err as { message?: string }).message! : "";
       if (msg.toLowerCase().includes("abort")) {
         setLoading(false);
         isLoadingRef.current = false;
         return;
       }
+      setToasts(prev => [...prev, { id: Date.now(), text: t.connectionError, type: "error" }]);
+      setConnectionFailed(true);
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [page]);
+  }, [page, t]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(r => setUser(r.data.session?.user ?? null));
-    supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
+    const client = getSupabase();
+    if (client) {
+      client.auth.getSession().then(r => setUser(r.data.session?.user ?? null));
+      client.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
+    }
     try {
       const raw = localStorage.getItem(CACHE_KEY);
       if (raw) {
@@ -316,8 +424,10 @@ export default function MilaStore() {
         }
       }
     } catch {}
-    loadProducts(false);
-  }, [loadProducts]);
+    setTimeout(() => {
+      loadProducts(false);
+    }, 0);
+  }, [loadProducts, envOk, CACHE_TTL_MS]);
 
   useEffect(() => {
     const el = loadMoreRef.current;
@@ -340,8 +450,13 @@ export default function MilaStore() {
 
   /* ================= AUTH HANDLER ================= */
   const handleAuth = async () => {
+    const client = getSupabase();
+    if (!client) {
+      alert(lang === "ar" ? "البيئة غير مهيأة" : "Environment not configured");
+      return;
+    }
     const res = isSignup
-      ? await supabase.auth.signUp({
+      ? await client.auth.signUp({
           email,
           password,
           options: {
@@ -352,14 +467,16 @@ export default function MilaStore() {
             }
           }
         })
-      : await supabase.auth.signInWithPassword({ email, password });
+      : await client.auth.signInWithPassword({ email, password });
 
     if (res.error) alert(res.error.message);
     else setShowAuth(false);
   };
   const resetPassword = async () => {
     if (!email) return alert(lang === "ar" ? "أدخل البريد الإلكتروني أولاً" : "Enter email first");
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const client = getSupabase();
+    if (!client) return alert(lang === "ar" ? "البيئة غير مهيأة" : "Environment not configured");
+    const { error } = await client.auth.resetPasswordForEmail(email, {
       redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
     });
     if (error) alert(error.message);
@@ -389,9 +506,11 @@ export default function MilaStore() {
     const results = await Promise.all(processed.map((blob, i) => {
       const ext = "jpg";
       const fileName = `${Date.now()}-${i}.${ext}`;
-      return supabase.storage.from("mila-market-assests").upload(fileName, blob).then((up) => {
+      const client = getSupabase();
+      if (!client) return Promise.resolve(null);
+      return client.storage.from("mila-market-assests").upload(fileName, blob).then((up) => {
         if (up.error) return null;
-        const { data } = supabase.storage.from("mila-market-assests").getPublicUrl(fileName);
+        const { data } = client.storage.from("mila-market-assests").getPublicUrl(fileName);
         return data.publicUrl;
       });
     }));
@@ -411,22 +530,30 @@ export default function MilaStore() {
       const imagesPayload = primaryImage ? { image_url: primaryImage } : {};
       const additionalPayload = uploads.length > 1 ? { additional_images: uploads.slice(1) } : {};
       const payload = { ...basePayload, ...imagesPayload, ...additionalPayload };
-      const res = await supabase.from("products").update(payload).eq("id", selectedProduct.id);
-      if (res.error) {
-        const fallback = { ...basePayload, ...imagesPayload };
-        const res2 = await supabase.from("products").update(fallback).eq("id", selectedProduct.id);
-        if (res2.error) ok = false;
+      const client = getSupabase();
+      if (!client) { ok = false; }
+      else {
+        const res = await client.from("products").update(payload).eq("id", selectedProduct.id);
+        if (res.error) {
+          const fallback = { ...basePayload, ...imagesPayload };
+          const res2 = await client.from("products").update(fallback).eq("id", selectedProduct.id);
+          if (res2.error) ok = false;
+        }
       }
     } else {
       const basePayload = { ...form, price: Number(form.price), user_id: user.id };
       const imagesPayload = primaryImage ? { image_url: primaryImage } : {};
       const additionalPayload = uploads.length > 1 ? { additional_images: uploads.slice(1) } : {};
       const payload = { ...basePayload, ...imagesPayload, ...additionalPayload };
-      const res = await supabase.from("products").insert(payload);
-      if (res.error) {
-        const fallback = { ...basePayload, ...imagesPayload };
-        const res2 = await supabase.from("products").insert(fallback);
-        if (res2.error) ok = false;
+      const client = getSupabase();
+      if (!client) { ok = false; }
+      else {
+        const res = await client.from("products").insert(payload);
+        if (res.error) {
+          const fallback = { ...basePayload, ...imagesPayload };
+          const res2 = await client.from("products").insert(fallback);
+          if (res2.error) ok = false;
+        }
       }
     }
 
@@ -470,6 +597,23 @@ export default function MilaStore() {
     }
   };
 
+  if (!envOk)
+    return (
+      <div suppressHydrationWarning className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={typeof window !== "undefined" ? (lang === "ar" ? "rtl" : "ltr") : "ltr"}>
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div className={`rounded-3xl p-8 text-center ${dark ? 'bg-white/5 border border-white/10' : 'bg-white border-2 border-amber-300'}`}>
+            <div className="mx-auto mb-4 w-14 h-14 flex items-center justify-center rounded-2xl bg-red-500/20 border border-red-400/40">
+              <AlertTriangle className="text-red-500" />
+            </div>
+            <p className="text-sm font-black">{lang === "ar" ? "الإعدادات ناقصة — تحقق من المتغيرات" : lang === "fr" ? "Paramètres manquants — vérifiez les variables" : "Missing settings — check environment variables"}</p>
+            <div className="mt-4 flex items-center justify-center">
+              <ModernIcon icon={<RotateCcw />} label={lang === "ar" ? "إعادة" : lang === "fr" ? "Réessayer" : "Retry"} onClick={() => { if (typeof window !== "undefined") window.location.reload(); }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
   if (loading)
     return (
       <div suppressHydrationWarning className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={typeof window !== "undefined" ? (lang === "ar" ? "rtl" : "ltr") : "ltr"}>
@@ -491,6 +635,7 @@ export default function MilaStore() {
 
   return (
     <div suppressHydrationWarning className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={typeof window !== "undefined" ? (lang === "ar" ? "rtl" : "ltr") : "ltr"}>
+      <ErrorBoundary onRetry={() => { if (typeof window !== "undefined") window.location.reload(); }} dark={dark} t={{ connectionError: t.connectionError }} lang={lang}>
 
       <nav style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }} className={`px-6 pb-6 flex justify-between items-center relative sticky top-0 backdrop-blur z-50 ${dark ? 'bg-black/80' : 'bg-white border-b border-amber-300'}`}>
         <div className="flex items-center gap-3">
@@ -518,27 +663,33 @@ export default function MilaStore() {
             <ModernIcon icon={<LogIn />} label={t.login} onClick={() => setShowAuth(true)} />
           )}
 
+          
+          {connectionFailed && (
+            <ModernIcon icon={<RotateCcw />} label={lang === "ar" ? "إعادة" : lang === "fr" ? "Réessayer" : "Retry"} onClick={() => { if (typeof window !== "undefined") window.location.reload(); }} />
+          )}
         </div>
-        {user && (
-          <button
-            onClick={() => setShowProfile(p => !p)}
-            aria-label="Profile"
-            className="absolute left-1/2 -translate-x-1/2 w-10 h-10 rounded-full overflow-hidden border border-white/20 bg-white/10 flex items-center justify-center"
-            style={{ top: '0.25rem' }}
-          >
-            {(() => {
-              const meta = user?.user_metadata || {};
-              const avatarUrl = (meta as Record<string, unknown>)?.picture as string | undefined || (meta as Record<string, unknown>)?.avatar_url as string | undefined;
-              const emailAddr = user?.email || (meta as Record<string, unknown>)?.email_address as string | undefined || "";
-              if (avatarUrl) {
-                return <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />;
-              }
-              const letter = emailAddr ? String(emailAddr).charAt(0).toUpperCase() : "U";
+        <button
+          onClick={() => { if (user) { if (typeof window !== "undefined") window.location.href = "/profile"; } else { setShowAuth(true); } }}
+          aria-label="Profile"
+          className="fixed z-[950] w-10 h-10 rounded-full overflow-hidden border border-white/20 bg-white/10 flex items-center justify-center"
+          style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)', right: 'calc(env(safe-area-inset-right) + 0.75rem)' }}
+        >
+          {(() => {
+            const meta = user?.user_metadata || {};
+            const avatarUrl = (meta as Record<string, unknown>)?.picture as string | undefined || (meta as Record<string, unknown>)?.avatar_url as string | undefined;
+            const emailAddr = user?.email || (meta as Record<string, unknown>)?.email_address as string | undefined || "";
+            if (avatarUrl) {
+              return <Image src={avatarUrl} alt="Profile" width={40} height={40} className="w-full h-full object-cover rounded-full" />;
+            }
+            if (emailAddr) {
+              const letter = String(emailAddr).charAt(0).toUpperCase();
               return <span className="text-xs font-black">{letter}</span>;
-            })()}
-          </button>
-        )}
+            }
+            return <Image src="https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico" alt="Gmail" width={40} height={40} unoptimized className="w-full h-full object-cover rounded-full" />;
+          })()}
+        </button>
       </nav>
+      
       <AnimatePresence>
         {showProfile && user && (
           <motion.div
@@ -553,11 +704,11 @@ export default function MilaStore() {
         )}
       </AnimatePresence>
       <motion.button
-        whileHover={{ scale: 1.06 }}
+        whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.94 }}
         onClick={() => setShowMenu(true)}
-        style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)', right: 'calc(env(safe-area-inset-right) + 0.75rem)' }}
-        className="fixed z-[900] w-12 h-12 rounded-2xl flex items-center justify-center text-white border border-white/5 bg-white/5"
+        style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+        className="fixed left-1/2 -translate-x-1/2 z-[900] w-12 h-12 rounded-2xl flex items-center justify-center text-white border border-white/5 bg-white/5"
         aria-label="Menu"
       >
         <Menu size={20} />
@@ -580,39 +731,40 @@ export default function MilaStore() {
                   <X size={18} />
                 </motion.button>
               </div>
-              <button onClick={() => { setShowMenu(false); user ? setShowAdd(true) : setShowAuth(true); }} className="w-full px-4 py-3 rounded-2xl bg-amber-500 text-black font-black border-2 border-amber-600">
-                {t.sell}
-              </button>
-              {user ? (
-                <button onClick={() => { setShowMenu(false); supabase.auth.signOut(); }} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
-                  {t.logout}
-                </button>
-              ) : (
-                <button onClick={() => { setShowMenu(false); setShowAuth(true); }} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
-                  {t.login}
-                </button>
-              )}
-              <a href="/stats" className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border text-center`}>Stats</a>
-              <button onClick={() => { const url = typeof window !== "undefined" ? window.location.href : ""; if (navigator.share) { navigator.share({ title: "Mila Store", url }); } else { navigator.clipboard.writeText(url); } }} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
-                {lang === "ar" ? "شارك التطبيق" : lang === "fr" ? "Partager l’app" : "Share App"}
-              </button>
-              <a href="mailto:milastore@gmail.com" className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border text-center`}>
-                {t.contactUs}
-              </a>
-              <button onClick={() => setLang(lang === "ar" ? "en" : lang === "en" ? "fr" : "ar")} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
-                {lang === "ar" ? "EN" : lang === "en" ? "FR" : "AR"}
-              </button>
-              <button onClick={() => setDark(!dark)} className={`${dark ? 'bg-white/10' : 'bg-amber-50 border-amber-200'} w-full px-4 py-3 rounded-2xl border`}>
-                {lang === "ar" ? "الوضع" : lang === "fr" ? "Thème" : "Theme"}
-              </button>
-              <button onClick={() => { setSearch(""); setCategory("الكل"); setLocation(""); setSortBy("newest"); setShowMenu(false); }} className="w-full px-4 py-3 rounded-2xl bg-amber-500 text-black font-black border-2 border-amber-600">
-                {t.reset}
-              </button>
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-4 mt-2">
+                <ModernIcon
+                  icon={<Tag />}
+                  label={lang === "ar" ? "الإعلانات" : lang === "fr" ? "Annonces" : "Ads"}
+                  onClick={() => { setShowMenu(false); window.location.href = "/seller"; }}
+                />
+                <ModernIcon
+                  icon={<BarChart3 />}
+                  label={lang === "ar" ? "الإحصائيات" : lang === "fr" ? "Stats" : "Stats"}
+                  onClick={() => { setShowMenu(false); window.location.href = "/stats"; }}
+                />
+                <ModernIcon
+                  icon={<Settings />}
+                  label={lang === "ar" ? "إعدادات" : lang === "fr" ? "Paramètres" : "Settings"}
+                  onClick={() => {
+                    setDark(!dark);
+                  }}
+                />
+                {user ? (
+                  <ModernIcon icon={<LogIn />} label={t.logout} onClick={() => { setShowMenu(false); getSupabase()?.auth.signOut(); }} />
+                ) : (
+                  <ModernIcon icon={<LogIn />} label={t.login} onClick={() => { setShowMenu(false); setShowAuth(true); }} />
+                )}
+                <ModernIcon
+                  icon={<DollarSign />}
+                  label={t.sell}
+                  onClick={() => { setShowMenu(false); if (user) { setShowAdd(true); } else { setShowAuth(true); } }}
+                />
+              </div>
             </motion.aside>
           </motion.div>
         )}
       </AnimatePresence>
-      {/* SEARCH */}
+      
       <div className="max-w-6xl mx-auto p-6">
         <div className="flex justify-center">
           <div className="relative w-full sm:w-3/5 md:w-1/2 lg:w-2/5">
@@ -803,7 +955,7 @@ export default function MilaStore() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95, borderWidth: 0 }}
                       aria-label={lang === "ar" ? "حذف" : "Delete"}
-                      onClick={async () => { await supabase.from("products").delete().eq("id", p.id); await loadProducts(); setToasts(prev => [...prev, { id: Date.now(), text: t.toastDeleted, type: "success" }]); }}
+                      onClick={async () => { const client = getSupabase(); if (!client) return; await client.from("products").delete().eq("id", p.id); await loadProducts(); setToasts(prev => [...prev, { id: Date.now(), text: t.toastDeleted, type: "success" }]); }}
                       className="w-9 h-9 sm:w-10 sm:h-10 p-0 rounded-full bg-amber-500 text-black border border-amber-600 flex items-center justify-center"
                     >
                       <Trash2 size={12} />
@@ -878,13 +1030,7 @@ export default function MilaStore() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)', paddingLeft: 'calc(env(safe-area-inset-left) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 1rem)' }} className="fixed inset-0 bg-black/80 backdrop-blur-2xl overflow-y-auto no-scrollbar">
             {/* Inner close in modal header */}
             <motion.div initial={{ y: 24, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} className={`relative p-6 sm:p-8 rounded-3xl w-[92%] max-w-md sm:max-w-xl mx-auto my-10 sm:my-24 shadow-2xl ${dark ? 'bg-neutral-900 text-white border border-white/10' : 'bg-white text-black border-2 border-amber-300'}`}>
-              <button
-                aria-label="Close"
-                onClick={() => setShowAdd(false)}
-                className={`absolute top-3 right-3 z-[1001] w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl ${dark ? 'text-white border border-white/40 bg-white/20' : 'text-black border border-amber-300 bg-amber-50'}`}
-              >
-                <X size={18} />
-              </button>
+              
               <h2 className="text-lg sm:text-xl font-black text-center mb-6 text-amber-500">
                 {t.addTitle}
               </h2>
@@ -1019,13 +1165,16 @@ export default function MilaStore() {
           setSelectedProduct(null);
         }}
         onDelete={async (p) => {
-          await supabase.from("products").delete().eq("id", p.id);
+          const client = getSupabase();
+          if (!client) return;
+          await client.from("products").delete().eq("id", p.id);
           await loadProducts();
           setToasts(prev => [...prev, { id: Date.now(), text: t.toastDeleted, type: "success" }]);
           setSelectedProduct(null);
         }}
       />
 
+      </ErrorBoundary>
     </div>
   );
 }
