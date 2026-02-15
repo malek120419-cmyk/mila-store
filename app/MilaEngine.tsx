@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // أيقونات جميلة تفاعلية
-type ModernIconProps = { icon: ReactNode; label: string; onClick?: () => void };
-export const ModernIcon = ({ icon, label, onClick }: ModernIconProps) => {
+type ModernIconProps = { icon: ReactNode; label: string; onClick?: () => void; size?: "sm" | "md" };
+export const ModernIcon = ({ icon, label, onClick, size = "md" }: ModernIconProps) => {
   const lowMotion = (() => {
     try {
       const prefersReduced = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -43,7 +43,7 @@ export const ModernIcon = ({ icon, label, onClick }: ModernIconProps) => {
       <motion.div
         whileHover={{ scale: lowMotion ? 1.03 : 1.06 }}
         transition={{ type: "spring", stiffness: lowMotion ? 360 : 420, damping: lowMotion ? 22 : 20 }}
-        className="relative w-12 h-12 flex items-center justify-center text-xl bg-white/5 rounded-2xl border border-white/5 overflow-hidden will-change-transform"
+        className={`relative ${size === "sm" ? "w-10 h-10" : "w-12 h-12"} flex items-center justify-center text-xl bg-white/5 rounded-2xl border border-white/5 overflow-hidden will-change-transform`}
       >
         <motion.div
           initial={{ opacity: 0 }}
@@ -60,7 +60,7 @@ export const ModernIcon = ({ icon, label, onClick }: ModernIconProps) => {
         />
         <span className="relative z-10 group-hover:text-black">{icon}</span>
       </motion.div>
-      <span className="text-[8px] font-black uppercase opacity-40 group-hover:opacity-100 tracking-tighter">{label}</span>
+      <span className={`${size === "sm" ? "text-[7px]" : "text-[8px]"} font-black uppercase opacity-40 group-hover:opacity-100 tracking-tighter`}>{label}</span>
     </motion.button>
   );
 };

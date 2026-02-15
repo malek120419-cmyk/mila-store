@@ -719,7 +719,7 @@ export default function MilaStore() {
     <div suppressHydrationWarning className={`${dark ? "bg-black text-white" : "bg-gray-50 text-black"} min-h-screen`} dir={typeof window !== "undefined" ? (lang === "ar" ? "rtl" : "ltr") : "ltr"}>
       <ErrorBoundary onRetry={() => { if (typeof window !== "undefined") window.location.reload(); }} dark={dark} t={{ connectionError: t.connectionError }} lang={lang}>
 
-      <nav style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }} className={`px-6 pb-6 flex justify-between items-center relative sticky top-0 backdrop-blur z-50 ${dark ? 'bg-black/80' : 'bg-white border-b border-amber-300'}`}>
+      <nav style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingRight: 'calc(env(safe-area-inset-right) + 3.5rem)' }} className={`px-6 pb-6 flex justify-between items-center relative sticky top-0 backdrop-blur z-50 ${dark ? 'bg-black/80' : 'bg-white border-b border-amber-300'}`}>
         <div className="flex items-center gap-3">
           <h1 className="font-black italic text-xl">
             MILA <span className="text-amber-500">STORE</span>
@@ -739,15 +739,15 @@ export default function MilaStore() {
           >
             {lang === "ar" ? "EN" : lang === "en" ? "FR" : "AR"}
           </button>
-          <ModernIcon icon={dark ? <Moon /> : <Sun />} label="Theme" onClick={() => setDark(!dark)} />
+          <ModernIcon icon={dark ? <Moon /> : <Sun />} label="Theme" onClick={() => setDark(!dark)} size={isMobile ? "sm" : "md"} />
 
           {!user && (
-            <ModernIcon icon={<LogIn />} label={t.login} onClick={() => setShowAuth(true)} />
+            <ModernIcon icon={<LogIn />} label={t.login} onClick={() => setShowAuth(true)} size={isMobile ? "sm" : "md"} />
           )}
 
           
           {connectionFailed && (
-            <ModernIcon icon={<RotateCcw />} label={lang === "ar" ? "إعادة" : lang === "fr" ? "Réessayer" : "Retry"} onClick={() => { if (typeof window !== "undefined") window.location.reload(); }} />
+            <ModernIcon icon={<RotateCcw />} label={lang === "ar" ? "إعادة" : lang === "fr" ? "Réessayer" : "Retry"} onClick={() => { if (typeof window !== "undefined") window.location.reload(); }} size={isMobile ? "sm" : "md"} />
           )}
         </div>
         <button
@@ -813,16 +813,18 @@ export default function MilaStore() {
                   <X size={18} />
                 </motion.button>
               </div>
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-4 mt-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 md:gap-4 mt-2">
                 <ModernIcon
                   icon={<Tag />}
                   label={lang === "ar" ? "الإعلانات" : lang === "fr" ? "Annonces" : "Ads"}
                   onClick={() => { setShowMenu(false); window.location.href = "/seller"; }}
+                  size={isMobile ? "sm" : "md"}
                 />
                 <ModernIcon
                   icon={<BarChart3 />}
                   label={lang === "ar" ? "الإحصائيات" : lang === "fr" ? "Stats" : "Stats"}
                   onClick={() => { setShowMenu(false); window.location.href = "/stats"; }}
+                  size={isMobile ? "sm" : "md"}
                 />
                 <ModernIcon
                   icon={<Settings />}
@@ -830,16 +832,18 @@ export default function MilaStore() {
                   onClick={() => {
                     setDark(!dark);
                   }}
+                  size={isMobile ? "sm" : "md"}
                 />
                 {user ? (
-                  <ModernIcon icon={<LogIn />} label={t.logout} onClick={() => { setShowMenu(false); getSupabase()?.auth.signOut(); }} />
+                  <ModernIcon icon={<LogIn />} label={t.logout} onClick={() => { setShowMenu(false); getSupabase()?.auth.signOut(); }} size={isMobile ? "sm" : "md"} />
                 ) : (
-                  <ModernIcon icon={<LogIn />} label={t.login} onClick={() => { setShowMenu(false); setShowAuth(true); }} />
+                  <ModernIcon icon={<LogIn />} label={t.login} onClick={() => { setShowMenu(false); setShowAuth(true); }} size={isMobile ? "sm" : "md"} />
                 )}
                 <ModernIcon
                   icon={<DollarSign />}
                   label={t.sell}
                   onClick={() => { setShowMenu(false); if (user) { setShowAdd(true); } else { setShowAuth(true); } }}
+                  size={isMobile ? "sm" : "md"}
                 />
               </div>
             </motion.aside>
